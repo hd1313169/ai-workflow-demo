@@ -1,4 +1,4 @@
-# crm-inst — CRM 企業客戶報表前端 prototype
+# ai-workflow-demo — CRM 企業客戶報表前端 prototype
 
 無框架、無建置相依的互動式前端雛形。共用元件以原生 Custom Elements（`fb-*`）實作，
 所有色彩／字級／間距集中於 design token。規範見
@@ -40,11 +40,35 @@ npm install
 npm run storybook         # 開發 http://localhost:6006
 npm run build-storybook   # 產出 storybook/storybook-static/
 npm run lint:brand        # 掃描建置產物的識別資訊
+npm run shots             # 截圖驗證（見下節）
 ```
 
 - 內容：`stories/Introduction.mdx`、`stories/foundations/`（讀 `design/tokens.json`）、
-  `stories/components/`（10 個精選元件）、`stories/patterns/`（組合範例與完整頁面）。
-- 頁面範例以 iframe 嵌入 `pages/*.html`（透過 `staticDirs` 帶進產物）。
+  `stories/components/`（全部 29 個 `fb-*` 元件）、`stories/patterns/`（可重複使用的組合）、
+  `stories/pages/`（全部頁面，依業務分類）。
+- 頁面以 iframe 嵌入，正式檔案經 `staticDirs` 帶到產物的 `app/` 下。
+- 改了 `.storybook/main.js` 要重啟 `npm run storybook`（該檔只在啟動時讀取）。
+
+### 截圖驗證（npm run shots）
+
+建置後以本機 Edge／Chrome 逐一截下每個 story，並收集主控台錯誤、例外與載入失敗的資源。
+
+```bash
+npm run shots                    # 全部
+npm run shots -- pages-          # 只截 id 含「pages-」的 story
+npm run shots -- --no-build      # 沿用既有建置
+npm run shots -- --wait=2500     # 加長每個畫面的等待時間（預設 1200ms）
+```
+
+- 輸出：`storybook/shots/<story-id>.png` 與 `shots/report.txt`（不進版控）。
+- 任一畫面有錯誤時以非零狀態結束；在與 GitHub Pages 相同的子路徑下載入。
+- 找不到瀏覽器時以環境變數 `CHROME_PATH` 指定。不需安裝額外套件。
+
+## AI 開發規則（CLAUDE.md）
+
+根目錄 `CLAUDE.md` 規定 AI 開發頁面時的流程：先在 Storybook 盤點元件與 pattern、
+缺元件先提案、只用 token、完成後以 `npm run shots` 讀截圖驗證、`npm run check` 把關。
+Claude Code 每次對話會自動載入。
 - 產物皆為相對路徑，可直接部署於 GitHub Pages 子路徑（`https://<帳號>.github.io/<repo>/`）。
 
 ### 部署（GitHub Actions）

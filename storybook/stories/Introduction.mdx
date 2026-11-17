@@ -2,10 +2,14 @@ import { Meta } from '@storybook/addon-docs/blocks';
 
 <Meta title="Introduction" />
 
-# crm-inst 元件庫
+<div className="sb-intro">
 
-企業客戶 CRM 報表系統的前端 prototype。這個 Storybook 展示它背後的**設計系統**：
-從一份 design token 出發，組成可重用的元件，再組裝成完整頁面。
+# ai-workflow-demo
+
+這個 Storybook 展示兩件事：
+
+1. 背後的**設計系統**：從一份 design token 出發，組成可重用的元件，再組裝成完整頁面。
+2. 以設計系統為核心的 **AI 協作開發流程**：讓 AI 寫出的頁面一致、可驗證。
 
 ## 架構
 
@@ -14,7 +18,7 @@ design/tokens.json  -- build -->  tokens.css
    (唯一來源)                       |
    primitive -> semantic -> component
                                     v
-                 components.css + components.js (28 個 fb-* 元件)
+      components.css + components.js + icons.js (29 個 fb-* 元件)
                                     |
                                     v
                     頁面 = 組裝檔 + 少量頁面邏輯
@@ -25,16 +29,54 @@ design/tokens.json  -- build -->  tokens.css
 - **三層 token**：primitive（原始色票）→ semantic（用途，如 `text-muted`）→ component（元件專用）。換主題只改 primitive 層。
 - **本 Storybook 不重寫元件**：直接載入正式頁面使用的同一份 CSS 與 JS。
 
+## AI 協作開發流程
+
+AI 寫頁面最常見的兩個問題：**不知道已有元件而自己重做**，以及**看不到畫面、無法自我驗證**。
+這個專案把 Storybook 當成 AI 的元件目錄與驗收工具，搭配規則、規格與自動檢查，形成一條閉環：
+
+```
+  需求
+   |
+   v
+1. 規格     OpenSpec 提案：proposal / design / specs / tasks
+   |
+   v
+2. 盤點     查 Storybook：Components 的屬性表、Patterns 的組合寫法
+   |        -- 缺元件 --> 先提案新增元件，進 Storybook 後才使用
+   v
+3. 實作     只組裝既有 fb-* 元件，色彩與間距一律用 token
+   |
+   v
+4. 驗證     npm run shots：截下每個畫面 + 主控台錯誤與 404 報告
+   |        AI 讀截圖比對需求，有問題就修正後重跑
+   v
+5. 把關     lint:tokens（硬編色值）+ lint:brand（識別資訊）
+   |
+   v
+6. 部署     push 到 main -> GitHub Actions 再檢查一次 -> GitHub Pages
+```
+
+- **`CLAUDE.md`**：專案根目錄的 AI 開發規則，每次對話自動載入，寫明上述步驟與每步的完成條件。
+- **Storybook**：機器可讀的元件目錄（屬性、事件、方法、預設值），也是 Patterns 的組裝範本。
+- **`npm run shots`**：一個指令截下全部或部分畫面並回報錯誤，讓 AI 能「看見」自己的成果。
+- **OpenSpec**：每項變更先寫規格與任務，完成後封存，留下可追溯的決策紀錄。
+- **lint 與 CI**：自動擋下硬編色值與識別資訊，任一檢查失敗就不部署。
+
+這個 Storybook 本身就是用這套流程完成的：從去識別化、元件展示到截圖驗證，每一步都有 OpenSpec 紀錄。
+
 ## 我的角色
 
 **UI/UX Designer**
 
 - **UI patterns 設計**：篩選區、報表表格、對話框、分頁等跨頁共用的介面模式
 - **Design system 建立**：三層 design token 架構與 `fb-*` 元件規格
+- **AI 協作流程設計**：以設計系統為核心，規劃 AI 開發的規則、驗證與把關機制
 
 ## 如何瀏覽
 
 - **Foundations**：色彩、字級、間距與圓角，數值即時讀自 `tokens.json`
-- **Components**：10 個精選元件，下方 Controls 面板可即時調整屬性
+- **Components**：全部 29 個元件，下方 Controls 面板可即時調整屬性，Docs 頁有完整屬性表
 - **Patterns**：可重複使用的元件組合，標示組成元件與使用頁面
 - **Pages**：全部 11 個頁面依業務分類，可直接操作
+
+</div>

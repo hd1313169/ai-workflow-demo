@@ -20,7 +20,7 @@ export default {
         order: [
           'Introduction',
           'Foundations', ['Colors', 'Typography', 'Spacing'],
-          'Components', ['Atoms', 'Forms', 'Overlays', 'Composite'],
+          'Components', ['Navigation', 'Atoms', 'Forms', 'Overlays', 'Data Display', 'Composite'],
           'Patterns', ['篩選區', '表單對話框', '刪除確認與回饋', '管轄範圍設定'],
           'Pages', ['首頁', '報表', '權限管理', '稽核'],
         ],

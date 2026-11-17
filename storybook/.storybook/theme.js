@@ -7,7 +7,7 @@ const primary = t['color-brand-700'].value;
 
 export default create({
   base: 'light',
-  brandTitle: 'crm-inst',
+  brandTitle: 'ai-workflow-demo',
   brandUrl: './',
   colorPrimary: primary,
   colorSecondary: primary,

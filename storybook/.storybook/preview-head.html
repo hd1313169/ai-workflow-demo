@@ -71,4 +71,22 @@
     font-style: normal; padding: 2px 8px; border-radius: var(--radius-xs); background: var(--bg-subtle);
   }
   .sb-pattern-meta em { background: var(--bg-hover-subtle); color: var(--text-muted); }
+
+  /* 圖示庫 */
+  .sb-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+  .sb-icon {
+    margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 8px 12px;
+    background: var(--bg-surface); border: 1px solid var(--line); border-radius: var(--radius-md);
+    font-size: 24px; color: var(--text-general);
+  }
+  .sb-icon figcaption { font-size: var(--fs-xs); color: var(--text-muted); text-align: center; word-break: break-all; }
+
+  /* Introduction 頁：拉開章節與段落間距（只作用於 .sb-intro） */
+  .sb-intro { line-height: 1.8; }
+  .sb-intro > h1 { margin-bottom: 24px; }
+  .sb-intro > h2 { margin-top: 64px; margin-bottom: 20px; padding-bottom: 12px; }
+  .sb-intro > p { margin: 16px 0; }
+  .sb-intro > ul, .sb-intro > ol { margin: 16px 0 24px; }
+  .sb-intro li + li { margin-top: 10px; }
+  .sb-intro > pre, .sb-intro .docblock-source { margin: 28px 0 32px; }
 </style>

@@ -1,13 +1,14 @@
 {
-  "name": "crm-inst-storybook",
+  "name": "ai-workflow-demo-storybook",
   "version": "0.1.0",
   "private": true,
-  "description": "crm-inst 元件展示（Storybook）。元件與樣式直接取自上層 assets/，不重寫。",
+  "description": "ai-workflow-demo 元件展示（Storybook）。元件與樣式直接取自上層 assets/，不重寫。",
   "type": "module",
   "scripts": {
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build -o storybook-static",
-    "lint:brand": "node ../build.mjs lint-brand storybook-static"
+    "lint:brand": "node ../build.mjs lint-brand storybook-static",
+    "shots": "node scripts/shots.mjs"
   },
   "devDependencies": {
     "@storybook/addon-docs": "10.6.7",
