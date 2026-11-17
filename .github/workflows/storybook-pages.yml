@@ -1,0 +1,72 @@
+# 建置 Storybook 並部署至 GitHub Pages。
+# 發佈前對「原始碼」與「建置產物」各跑一次識別資訊檢查，任一命中即中止，不會部署。
+# 需要 repository secret：BRAND_DENYLIST（禁用詞清單全文，格式同 .brand-denylist.txt）
+name: Storybook -> Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      BRAND_DENYLIST_FILE: ${{ runner.temp }}/brand-denylist.txt
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: storybook/package-lock.json
+
+      - name: 寫出禁用詞清單（來自 secret，不進 log）
+        env:
+          DENYLIST: ${{ secrets.BRAND_DENYLIST }}
+        run: |
+          if [ -z "$DENYLIST" ]; then echo "缺少 BRAND_DENYLIST secret"; exit 1; fi
+          printf '%s\n' "$DENYLIST" > "$BRAND_DENYLIST_FILE"
+
+      - name: 識別資訊檢查（原始碼）
+        run: node build.mjs lint-brand
+
+      - name: 色值檢查
+        run: node build.mjs lint
+
+      - name: 安裝並建置 Storybook
+        working-directory: storybook
+        run: |
+          npm ci
+          npm run build-storybook
+
+      - name: 識別資訊檢查（建置產物）
+        run: node build.mjs lint-brand storybook/storybook-static
+
+      - name: 清除禁用詞清單
+        if: always()
+        run: rm -f "$BRAND_DENYLIST_FILE"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: storybook/storybook-static
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

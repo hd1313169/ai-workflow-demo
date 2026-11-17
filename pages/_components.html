@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>元件庫 Kitchen Sink</title>
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<style>
+  /* 僅此頁的排版輔助（不引入色值）*/
+  .ks { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .ks h2 { margin: 40px 0 4px; font-size: 18px; }
+  .ks .fig { font-size: 12px; color: var(--text-faint); margin: 0 0 12px; }
+  .ks .demo { border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 8px; background: var(--bg-surface); }
+  .ks .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .ks .col { min-width: 240px; flex: 1; }
+  .ks .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ks .sw { width: 96px; font-size: 11px; }
+  .ks .sw i { display: block; height: 40px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+</style>
+</head>
+<body>
+<div class="ks">
+  <h1>元件庫 Kitchen Sink</h1>
+  <p class="fig">每個元件列出其變體與狀態；細節見 <code>design/components.md</code>。</p>
+
+  <h2>fb-icon</h2>
+  <p class="fig">圖示庫。</p>
+  <div class="demo">
+    <div class="row" style="font-size:24px;color:var(--accent-primary)">
+      <fb-icon name="fb-search"></fb-icon>
+      <fb-icon name="fb-voice"></fb-icon>
+      <fb-icon name="fb-user"></fb-icon>
+      <fb-icon name="fb-reset"></fb-icon>
+      <fb-icon name="fb-export"></fb-icon>
+      <fb-icon name="fb-calendar"></fb-icon>
+      <fb-icon name="fb-chevron-down"></fb-icon>
+      <fb-icon name="fb-chevron-left"></fb-icon>
+      <fb-icon name="fb-plus"></fb-icon>
+      <fb-icon name="fb-minus"></fb-icon>
+      <fb-icon name="fb-close"></fb-icon>
+      <fb-icon name="fb-edit"></fb-icon>
+      <fb-icon name="fb-sort"></fb-icon>
+      <fb-icon name="fb-info"></fb-icon>
+      <fb-icon name="fb-info-filled"></fb-icon>
+      <fb-icon name="fb-alert-triangle"></fb-icon>
+      <fb-icon name="fb-link"></fb-icon>
+      <fb-icon name="fb-clock"></fb-icon>
+      <fb-icon name="fb-check-circle"></fb-icon>
+      <fb-icon name="fb-check-circle-filled"></fb-icon>
+      <fb-icon name="fb-close-circle"></fb-icon>
+      <fb-icon name="fb-outlook"></fb-icon>
+      <fb-icon name="fb-star-outline"></fb-icon>
+      <fb-icon name="fb-star-filled"></fb-icon>
+    </div>
+  </div>
+
+  <h2>fb-topnav</h2>
+  <p class="fig">（導覽）。變體：active = home | customer | marketing | report-zone | tools</p>
+  <div class="demo" style="padding:0">
+    <fb-topnav active="report-zone"></fb-topnav>
+  </div>
+
+  <h2>fb-area-title</h2>
+  <p class="fig">屬性：zh、en、icon（選用，icons registry 名稱）。</p>
+  <div class="demo"><fb-area-title zh="境內客戶報表" en="Domestic Client Report"></fb-area-title></div>
+  <div class="demo"><fb-area-title icon="fb-calendar" zh="個人行事曆" en="Personal Calendar"></fb-area-title></div>
+
+  <h2>fb-tabbar</h2>
+  <p class="fig">屬性：active（索引）。事件：tab-change。分頁項可帶 <code>href</code>：點擊時導向該頁（不切 active、不發事件）。</p>
+  <div class="demo">
+    <fb-tabbar active="0">
+      <script type="application/json">[{"zh":"分頁一","en":"Tab One"},{"zh":"分頁二","en":"Tab Two"},{"zh":"分頁三","en":"Tab Three"}]</script>
+    </fb-tabbar>
+  </div>
+  <p class="fig">連結分頁：第 2 項帶 <code>href</code>，點擊導向 role_management.html</p>
+  <div class="demo">
+    <fb-tabbar active="0">
+      <script type="application/json">[{"zh":"停留此頁","en":"Stay"},{"zh":"前往角色管理","en":"Role Management","href":"role_management.html"}]</script>
+    </fb-tabbar>
+  </div>
+
+  <h2>fb-card-tabs</h2>
+  <p class="fig">卡片式分頁（灰底軌、白底 active + 主色底線、左對齊固定寬）。屬性：active（索引）。JSON 項目可選 badge（數字，>0 時顯示紅底徽章）。事件：tab-change。 / 徽章 </p>
+  <div class="demo" style="padding:0;background:var(--bg-surface)">
+    <fb-card-tabs active="1">
+      <script type="application/json">[{"zh":"客戶列表","en":"Customer List"},{"zh":"行事曆","en":"Calendar"},{"zh":"服務通知","en":"Service Notice","badge":2}]</script>
+    </fb-card-tabs>
+  </div>
+  <p class="fig">未設定／為 0 時不顯示徽章：</p>
+  <div class="demo" style="padding:0;background:var(--bg-surface)">
+    <fb-card-tabs active="0">
+      <script type="application/json">[{"zh":"客戶列表","en":"Customer List"},{"zh":"行事曆","en":"Calendar"},{"zh":"服務通知","en":"Service Notice","badge":0}]</script>
+    </fb-card-tabs>
+  </div>
+
+  <h2>fb-side-tabs</h2>
+  <p class="fig">直式（垂直排列）分頁，供「左側分頁切換右側主要內容」版型沿用。屬性：active（索引）。JSON 項目：{zh,en}。事件：tab-change。（服務紀錄管理 總表 客戶／研究員）</p>
+  <div class="demo" style="padding:0;background:var(--bg-surface)">
+    <fb-side-tabs active="0" style="width:160px">
+      <script type="application/json">[{"zh":"客戶","en":"Client"},{"zh":"研究員","en":"Analyst"}]</script>
+    </fb-side-tabs>
+  </div>
+
+  <h2>異動標籤 .chip--changed</h2>
+  <p class="fig">紅色狀態標籤，用於表格欄位標示單一異動類型（非互動）。「類型」欄</p>
+  <div class="demo">
+    <span class="chip chip--changed"><span class="chip__label">時間異動</span></span>
+    <span class="chip chip--changed"><span class="chip__label">講師異動</span></span>
+  </div>
+
+  <h2>fb-segmented</h2>
+  <p class="fig">分段控制（單選）。設定：內嵌 JSON `[{value,label,disabled?}]`（或 `[{zh,en,disabled?}]`）；`value`。事件：change { value }。disabled 項目僅顯示文字、不可點擊。（總表/明細）</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <fb-segmented value="personal">
+      <script type="application/json">[{"value":"personal","label":"個人 Personal"},{"value":"service","label":"服務 Service"},{"value":"event","label":"活動 Event"}]</script>
+    </fb-segmented>
+  </div></div>
+  <p class="fig">含 disabled 項目（比照服務紀錄管理頁「總表 Summary／明細 Details」）：</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <fb-segmented value="總表">
+      <script type="application/json">[{"zh":"總表","en":"Summary"},{"zh":"明細","en":"Details","disabled":true}]</script>
+    </fb-segmented>
+  </div></div>
+
+  <h2>fb-filter-card</h2>
+  <div class="demo" style="padding:0;border:0">
+    <fb-filter-card>
+      <div class="filter__grid cols-3">
+        <div class="field"><label>單選 <span class="en">Single</span></label>
+          <fb-dropdown type="single"><script type="application/json">{"options":["甲","乙","丙"],"value":"甲"}</script></fb-dropdown></div>
+        <div class="field"><label>多選＋搜尋 <span class="en">Multi + search</span></label>
+          <fb-dropdown type="multi" search><script type="application/json">{"options":["科技業","銀行","金融業","物流業"]}</script></fb-dropdown></div>
+        <div class="field"><label>日期 <span class="en">Date</span></label>
+          <fb-date-field value="2026/01/15"></fb-date-field></div>
+      </div>
+    </fb-filter-card>
+  </div>
+
+  <h2>fb-dropdown</h2>
+  <p class="fig">。變體：type=single | multi；search on/off。狀態：closed / open / placeholder(多選清空) / 全選</p>
+  <div class="demo"><div class="row">
+    <div class="col"><small>single</small>
+      <fb-dropdown type="single"><script type="application/json">{"options":["交易量","淨收益","佔比"],"value":"淨收益"}</script></fb-dropdown></div>
+    <div class="col"><small>multi（預設全選）</small>
+      <fb-dropdown type="multi"><script type="application/json">{"options":["台股","海外股","海外債"]}</script></fb-dropdown></div>
+    <div class="col"><small>multi + search + 清空（placeholder）</small>
+      <fb-dropdown type="multi" search placeholder="請選擇"><script type="application/json">{"options":["A","B","C","D"],"value":[]}</script></fb-dropdown></div>
+  </div></div>
+
+  <h2>fb-date-field</h2>
+  <p class="fig">。狀態：closed / open；操作：換月 / 選日 / 清除 / 確認。屬性：min / max（YYYY/MM/DD，超出範圍的日期禁用、刪除線）</p>
+  <div class="demo"><div class="row">
+    <div class="col"><fb-date-field value="2025/01/01"></fb-date-field></div>
+    <div class="col"><fb-date-field value="2026/08/30"></fb-date-field></div>
+    <div class="col"><fb-date-field value="2026/08/15" min="2026/08/10" max="2026/08/25"></fb-date-field></div>
+  </div></div>
+  <p class="fig">fbLinkRange：起／訖成對綁定（訖不得早於起）。改「起」日期後，「訖」日曆早於起日的格子會被禁用；若把「起」改到晚於目前「訖」，「訖」會被推移跟上。「起」本身不因「訖」而設上界。</p>
+  <div class="demo"><div class="row">
+    <div class="col"><fb-date-field id="lrStart" value="2026/08/10"></fb-date-field></div>
+    <div class="col"><fb-date-field id="lrEnd" value="2026/08/20"></fb-date-field></div>
+  </div></div>
+
+  <h2>fb-time-field</h2>
+  <p class="fig">（時間選單）。狀態：closed / open；操作：時 / 分 上下步進。事件：change{value:"HH:MM"}。屬性：min / max（HH:MM，設了則 clamp 不迴繞）</p>
+  <div class="demo"><div class="row">
+    <div class="col"><fb-time-field value="09:00"></fb-time-field></div>
+    <div class="col"><fb-time-field value="15:26"></fb-time-field></div>
+    <div class="col"><fb-time-field value="17:00" min="09:00" max="17:30"></fb-time-field></div>
+  </div></div>
+  <p class="fig">fbLinkRange：開始／結束時間成對綁定（結束不得早於開始）。</p>
+  <div class="demo"><div class="row">
+    <div class="col"><fb-time-field id="lrStartT" value="09:00"></fb-time-field></div>
+    <div class="col"><fb-time-field id="lrEndT" value="12:00"></fb-time-field></div>
+  </div></div>
+
+  <h2>fb-datetime-field</h2>
+  <p class="fig">（date picker-使用者登錄紀錄）。日期＋時間複合欄位，格式 YYYY/MM/DD HH:MM；空值顯示 placeholder。狀態：closed / open；操作：選日 + 時/分步進 + 清除 / 確認。事件：change{value}</p>
+  <div class="demo"><div class="row">
+    <div class="col"><fb-datetime-field placeholder="請選擇"></fb-datetime-field></div>
+    <div class="col"><fb-datetime-field value="2025/09/17 15:26"></fb-datetime-field></div>
+    <div class="col"><fb-datetime-field value="2026/08/20 09:00" min="2026/08/10 00:00" max="2026/08/25 23:59"></fb-datetime-field></div>
+  </div></div>
+  <p class="fig">fbLinkRange：起／訖成對綁定（訖不得早於起，起值改到晚於訖值時推移訖值跟上）。</p>
+  <div class="demo"><div class="row">
+    <div class="col"><fb-datetime-field id="lrStartDT" value="2026/08/10 09:00"></fb-datetime-field></div>
+    <div class="col"><fb-datetime-field id="lrEndDT" value="2026/08/20 18:00"></fb-datetime-field></div>
+  </div></div>
+
+  <h2>fb-chip</h2>
+  <p class="fig">屬性：active、closable。事件：chip-select / chip-close</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <fb-chip label="未選"></fb-chip>
+    <fb-chip label="選中" active></fb-chip>
+    <fb-chip label="可關閉" closable></fb-chip>
+    <fb-chip label="選中＋可關閉" active closable></fb-chip>
+    <fb-chip label="集團戶, 客戶類型, 科技業, 迅捷物流" active closable></fb-chip>
+  </div></div>
+
+  <h2>fb-status-pill</h2>
+  <p class="fig">屬性：state = off | on；icon（選用，registry 名稱，取代預設 fb-link 前置圖示）；interactive（可點，發 <code>pill-click</code> 事件）；label-on / label-off（隨 state 切換文字）。（Default 灰／Actived 綠）、Outlook 串接 </p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <fb-status-pill state="off">未啟用</fb-status-pill>
+    <fb-status-pill state="on">已啟用</fb-status-pill>
+    <fb-status-pill state="off" icon="fb-outlook">未啟用</fb-status-pill>
+    <fb-status-pill id="ksPill" state="off" icon="fb-outlook" interactive label-off="未啟用" label-on="已啟用">未啟用</fb-status-pill>
+    <span class="fig" id="ksPillOut">interactive：點擊切換</span>
+  </div></div>
+
+  <h2>fb-mini-calendar</h2>
+  <p class="fig">屬性：value（YYYY/MM/DD）、month（YYYY/MM）。方法：setMonth / goToday / select。事件：date-change / month-change。狀態：今日（主色數字＋淡底）／選取／月首月末空白補格／每日最多 3 事件點。（日格 ）</p>
+  <div class="demo" style="max-width:520px">
+    <fb-mini-calendar value="2026/08/24" month="2026/08">
+      <script type="application/json">{"events":[
+        {"date":"2026/08/01","kinds":["service"]},
+        {"date":"2026/08/07","kinds":["personal","service","event"]},
+        {"date":"2026/08/17","kinds":["personal","event"]},
+        {"date":"2026/08/24","kinds":["personal","service","event"]},
+        {"date":"2026/08/28","kinds":["service"]}
+      ]}</script>
+    </fb-mini-calendar>
+  </div>
+
+  <h2>fb-schedule-dialog</h2>
+  <p class="fig">屬性：mode = timed | allday。方法：open(data?) / close()。事件：submit / cancel。（Default / All Day）</p>
+  <p class="fig">面板為三段式（固定頁首／捲動 <code>.sched__body</code>／固定頁尾）。開啟後點任一日期／時間欄位：浮層以 <code>position:fixed</code> 掛在 <code>&lt;body&gt;</code>，不被面板或內文裁切、疊在對話框之上；捲動內文時浮層貼齊欄位；關閉對話框會一併關掉浮層。</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <button class="btn-primary" id="ksSchedTimed"><fb-icon name="fb-plus"></fb-icon> 開啟（計時）</button>
+    <button class="btn-outline" id="ksSchedAllday">開啟（全天）</button>
+    <span class="fig" id="ksSchedOut">（submit / cancel 結果顯示於此）</span>
+  </div></div>
+  <fb-schedule-dialog id="ksSched" mode="timed"></fb-schedule-dialog>
+
+  <h2>fb-confirm-dialog</h2>
+  <p class="fig">通用確認對話框。方法：open({heading, headingEn, title, desc, confirmLabel, confirmLabelEn, tone})。事件：confirm / cancel。tone="danger" → 確認鈕為 .btn-danger-outline。</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <button class="btn-danger-outline" id="ksConfirm">開啟刪除確認</button>
+    <span class="fig" id="ksConfirmOut">（confirm / cancel 結果顯示於此）</span>
+  </div></div>
+  <fb-confirm-dialog id="ksConfirmDlg"></fb-confirm-dialog>
+
+  <h2>fb-toast</h2>
+  <p class="fig">右上角短暫通知（3.2s 自動消失、× 可關）。方法：show(message, {tone, desc})；tone: success（預設）| danger；desc 為選填第二行說明。（danger）</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <button class="btn-outline" id="ksToast">顯示 toast</button>
+    <button class="btn-outline" id="ksToastDesc">顯示 toast（含說明）</button>
+    <button class="btn-outline" id="ksToastDanger">顯示 toast（danger）</button>
+  </div></div>
+  <fb-toast id="ksToastEl"></fb-toast>
+
+  <h2>fb-toggle</h2>
+  <p class="fig">開關。屬性：checked、disabled、variant="card"（zh / en / desc）。事件：change { checked }。Figma：dialog-新增角色 「啟用此角色」</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <fb-toggle checked></fb-toggle>
+    <fb-toggle></fb-toggle>
+    <fb-toggle checked disabled></fb-toggle>
+  </div></div>
+  <div class="demo">
+    <fb-toggle variant="card" checked zh="啟用此角色" en="Active Status"
+      desc="停用後已指派此角色的使用者將暫時無法使用相關功能"></fb-toggle>
+  </div>
+
+  <h2>fb-icon-toggle</h2>
+  <p class="fig">通用單一圖示兩態切換鈕。屬性：on、off-icon、on-icon、disabled。事件：change { on }。首用點：首頁行事曆「追蹤 F/U」，</p>
+  <div class="demo"><div class="row" style="align-items:center;font-size:20px">
+    <fb-icon-toggle off-icon="fb-star-outline" on-icon="fb-star-filled"></fb-icon-toggle>
+    <fb-icon-toggle on off-icon="fb-star-outline" on-icon="fb-star-filled"></fb-icon-toggle>
+    <fb-icon-toggle disabled off-icon="fb-star-outline" on-icon="fb-star-filled"></fb-icon-toggle>
+  </div></div>
+
+  <h2>fb-stat-card</h2>
+  <p class="fig">純展示統計卡（icon 徽章 + 中英標題 + 大數字）。屬性：icon / zh / en / value。</p>
+  <div class="demo"><div class="row">
+    <div class="col"><fb-stat-card icon="fb-user" zh="系統總角色數" en="Total Roles" value="6"></fb-stat-card></div>
+    <div class="col"><fb-stat-card tone="success" icon="fb-check-circle-filled" zh="啟用中角色" en="Actived Roles" value="5"></fb-stat-card></div>
+    <div class="col"><fb-stat-card tone="warning" icon="fb-refresh-cw" zh="目前代理中人數" en="Delegating Users" value="4"></fb-stat-card></div>
+  </div></div>
+
+  <h2>fb-perm-tree</h2>
+  <p class="fig">權限樹表（角色 Modal 內）。內嵌 JSON `{columns, modules}`，未提供時用內建 5 主模組 / 12 功能頁面。
+    方法：selectAll / clearAll / getSelection / setSelection。事件：perm-change { checked, total, exportChecked }。
+    全選＝ 48 / 48、匯出特權 8。</p>
+  <div class="demo">
+    <fb-perm-tree id="ksPerm"></fb-perm-tree>
+    <p class="fig" id="ksPermOut" style="margin-top:12px">（perm-change 結果顯示於此）</p>
+    <div class="row" style="align-items:center;margin-top:8px">
+      <button class="btn-text" id="ksPermAll">selectAll()</button>
+      <button class="btn-text muted" id="ksPermNone">clearAll()</button>
+      <button class="btn-outline" id="ksPermSet">setSelection(系統管理員範例)</button>
+    </div>
+  </div>
+
+  <h2>fb-modal</h2>
+  <p class="fig">通用 Modal 外殼（遮罩 + 白卡 + header× + 可捲 body + sticky footer；60vw / 80vh / max 680px；&lt;=640px 近全螢幕）。
+    子節點帶 data-modal-footer 者移入 footer。方法：open / close / setHeading(zh,en)。事件：modal-open / modal-close。見 design.md D1</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <button class="btn-primary" id="ksModalOpen"><fb-icon name="fb-plus"></fb-icon> 開啟 Modal</button>
+    <span class="fig" id="ksModalOut">（modal-open / modal-close 顯示於此）</span>
+  </div></div>
+  <fb-modal id="ksModal" heading="範例 Modal" heading-en="Example Modal">
+    <p>這是 Modal 的內文區（可捲動）。放入表單、<code>fb-perm-tree</code> 等內容。</p>
+    <div data-modal-footer style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%">
+      <span class="fig">footer 區塊（計數等）</span>
+      <span style="display:inline-flex;gap:8px">
+        <button class="btn-neutral-outline" data-modal-cancel>取消 Cancel</button>
+        <button class="btn-primary" data-modal-close>確定 OK</button>
+      </span>
+    </div>
+  </fb-modal>
+
+  <h2>fb-info-table</h2>
+  <p class="fig">label／value 兩欄唯讀資訊表（ 內 informational table-cell）。內嵌 JSON `[{ label, value }, …]` 或以 rows setter 指定；
+    label 欄固定寬 120px、value 欄可換行，相鄰列白／藍交錯，value 空字串顯示「-」。無排序／篩選／列互動。</p>
+  <div class="demo" style="max-width:640px">
+    <fb-info-table>
+      <script type="application/json">[
+        { "label": "操作時間", "value": "2026/08/27 18:30" },
+        { "label": "執行者", "value": "859230-葉志明" },
+        { "label": "代理人", "value": "" },
+        { "label": "執行者 IP", "value": "192.168.9.30" },
+        { "label": "執行功能", "value": "日誌資料匯出" },
+        { "label": "執行參數", "value": "function Uf(a){ if(!a.length) return a; a.push({id:'main',ine:0}); for(var b=a.length-1;b>0;b--) Ab(a[b].id)&&a.splice(b++,1); for(var c=a.length-1;c>0;c--) a[c].line=a[c-1].line; a.splice(0,1); return a }" },
+        { "label": "執行 API", "value": "404b4855-ef01-48b8-9a04-7275949dbf3b" },
+        { "label": "AP Server", "value": "*^&**(&^%" },
+        { "label": "Trace Id", "value": "123e4567-e89b-12d3-a456-426614174000" },
+        { "label": "Status Message", "value": "{ \"code\": 400, \"message\": \"Invalid input format.\" }" }
+      ]</script>
+    </fb-info-table>
+  </div>
+
+  <h2>fb-loader / .is-loading（按鈕處理中）</h2>
+  <p class="fig">。按鈕加 `.is-loading` 並把圖示換成 `fb-loader`：圖示持續旋轉、按鈕不回應點擊。</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <button class="btn-outline" type="button"><fb-icon name="fb-export"></fb-icon> 匯出 Export</button>
+    <button class="btn-outline is-loading" type="button"><fb-icon name="fb-loader"></fb-icon> 匯出 Export</button>
+  </div></div>
+
+  <h2>fb-transfer</h2>
+  <p class="fig">雙欄穿梭清單 Dual Listbox。內嵌 JSON `{ items:[{id,label}], value:["id"...], leftTitle, rightTitle }`；
+    或以 left-title / right-title 屬性覆寫標題。方法：get/set value（右欄 id 陣列）、setData(items, value)。事件：transfer-change { value }。
+    每欄＝標題（框外）＋方框（灰底搜尋列 + 白底可捲清單）；清單多選（點列切換），中間 4 顆方形鈕 ›（選取右移）»（全部右移）‹（選取左移）«（全部左移），「全部」以搜尋後可見項為準。</p>
+  <div class="demo">
+    <fb-transfer id="ksTransfer">
+      <script type="application/json">{
+        "leftTitle": "未管轄組織 Unjurisdictional Org.",
+        "rightTitle": "管轄組織 Jurisdictional Org.",
+        "items": [
+          { "id": "9464", "label": "9464 澎湖區部" },
+          { "id": "9313", "label": "9313 台北區部" },
+          { "id": "9274", "label": "9274 金門區部" },
+          { "id": "9194", "label": "9194 宜蘭分公司" },
+          { "id": "9428", "label": "9428 嘉義分公司" },
+          { "id": "9063", "label": "9063 屏東分公司" }
+        ],
+        "value": ["9313", "9194"]
+      }</script>
+    </fb-transfer>
+    <p class="fig" id="ksTransferOut" style="margin-top:12px">（transfer-change 結果顯示於此）</p>
+  </div>
+
+  <h2>fb-pagination</h2>
+  <p class="fig">表格底部分頁列。內嵌 JSON `{ total, page, pageSize, sizes:[..] }`，
+    或以 total / page / page-size / sizes（逗號分隔）屬性設定。三段：資訊列（顯示第 X 到 Y 筆，共 T 筆資料）＋ 頁碼區（‹ 前一頁、頁碼、省略號、後一頁 ›，永遠含第 1／末頁／目前頁 ±1）＋「每頁顯示 N 筆」下拉。
+    getter：page / pageSize / pageCount。方法：setTotal(total, page?)（重繪但不派事件）。事件：page-change { page, pageSize }（改每頁筆數時 page 重置為 1）。</p>
+  <div class="demo">
+    <fb-pagination id="ksPager" total="95" page-size="20"></fb-pagination>
+    <p class="fig" id="ksPagerOut" style="margin-top:12px">（page-change 結果顯示於此）</p>
+  </div>
+
+  <h2>.select-card（卡片式單／多選項目）</h2>
+  <p class="fig">共用 class（由 fb-export-dialog 內部組裝，亦可其他頁沿用）。變體：--radio / --checkbox。狀態：未選 / 選中（.is-selected）/ 禁用（.is-disabled）。</p>
+  <div class="demo"><div class="row">
+    <div class="col"><small>radio</small>
+      <div class="select-card select-card--radio is-selected"><span class="select-card__marker"></span>
+        <span class="select-card__body"><span class="select-card__title">僅匯出「月份累計」資料</span>
+        <span class="select-card__desc">報表橫向僅平舖各個歷史月份的整月統計，不展開週欄位。</span></span></div>
+      <div class="select-card select-card--radio"><span class="select-card__marker"></span>
+        <span class="select-card__body"><span class="select-card__title">展開「週明細」資料</span>
+        <span class="select-card__desc">報表將逐月展開 W1 至 W5 的每週數據，欄位量較多。</span></span></div>
+    </div>
+    <div class="col"><small>checkbox（含禁用）</small>
+      <div class="select-card-grid">
+        <div class="select-card select-card--checkbox is-selected"><span class="select-card__marker"></span>
+          <span class="select-card__body"><span class="select-card__title">當月 MTD</span></span></div>
+        <div class="select-card select-card--checkbox"><span class="select-card__marker"></span>
+          <span class="select-card__body"><span class="select-card__title">MoM</span></span></div>
+        <div class="select-card select-card--checkbox is-disabled" title="佔比全月結算無實質買業務意義"><span class="select-card__marker"></span>
+          <span class="select-card__body"><span class="select-card__title">月化</span></span></div>
+      </div>
+    </div>
+  </div></div>
+
+  <h2>fb-export-dialog</h2>
+  <p class="fig">自訂匯出報表對話框（可復用、與報表資料無關）。方法：open(config?) / close()。事件：export { time, metrics, detailLevel, summary } / cancel。
+    config：time（monthly|weekly）、metrics（['mtd','ytd','mom','yoy','monthlyize'] 子集）、detailLevel（affiliate|category|household|account）、summary（['subtotal','total'] 子集）、marketShareMode、partialMonthMode。
+    區塊：報表時間維度 / 統計比較指標（可多選）/ 客戶明細層級（四層級）/ 彙總計算（可多選：包含小計、包含總計）。
+    連動：客戶明細層級＝「客戶帳號明細」（account）時，彙總計算兩張卡片強制取消勾選＋停用（區塊標題不淡化）、export payload 的 summary 為 []；切回其他層級還原為兩項皆選。
+    狀態：預設（明細層級＝集團戶彙總、彙總計算兩項皆選）/ 佔比（月化停用＋tooltip）/ 非整月簡化模式（頂部警告＋僅「報表時間維度」「統計比較指標」兩區停用且皆不預設選取；客戶明細層級與彙總計算維持與 1 號情境相同）/ Loading（按匯出後約 0.8s 自動關閉）。
+    尺寸：60vw / 80vh（無最大高度上限）。開啟時鎖定底層頁面捲動（跨 modal 通則）。
+    （Default / 佔比指標 / 非1號開始 / 客戶帳號明細(無彙總計算)  / 非1號開始+客戶帳號明細  / Loading）</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <button class="btn-primary" id="ksExpDefault"><fb-icon name="fb-export"></fb-icon> 開啟（預設）</button>
+    <button class="btn-outline" id="ksExpMs">開啟（佔比）</button>
+    <button class="btn-outline" id="ksExpPartial">開啟（非整月簡化）</button>
+    <span class="fig" id="ksExpOut">（export / cancel 結果顯示於此）</span>
+  </div></div>
+  <fb-export-dialog id="ksExpDlg"></fb-export-dialog>
+
+  <h2>fb-batch-export-dialog</h2>
+  <p class="fig">批次匯出對話框（可復用）。方法：open({ count, limit }) / close()；limit 預設 2000，batches = ceil(count/limit)。
+    事件：export { count, limit, batches } / cancel。× / Esc / 取消 皆等同取消並關閉；點遮罩不關閉；開啟時鎖定底層捲動。
+    狀態：未超過上限（主按鈕「下載」、不顯示分批提示）/ 超過上限（顯示「共 B 批」與「每批約 M 筆，檔案格式：CSV」、主按鈕「分批下載」）。
+    （Dialog-匯出，含「超過單次下載上限」變體）</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <button class="btn-outline" id="ksBxUnder">開啟（1,500 筆，未超上限）</button>
+    <button class="btn-primary" id="ksBxOver">開啟（10,000 筆，超過上限）</button>
+    <span class="fig" id="ksBxOut">（export / cancel 結果顯示於此）</span>
+  </div></div>
+  <fb-batch-export-dialog id="ksBxDlg"></fb-batch-export-dialog>
+
+  <h2>按鈕（class）</h2>
+  <div class="demo"><div class="row" style="align-items:center">
+    <button class="btn-primary"><fb-icon name="fb-plus"></fb-icon> 新增行程 Add</button>
+    <button class="btn-text muted"><fb-icon name="fb-reset"></fb-icon> 重設 Reset</button>
+    <button class="btn-primary"><fb-icon name="fb-search"></fb-icon> 查詢 Search</button>
+    <button class="btn-outline"><fb-icon name="fb-export"></fb-icon> 匯出報表 Export</button>
+    <button class="btn-outline"><fb-icon name="fb-edit"></fb-icon> 編輯 Edit</button>
+    <button class="btn-outline"><fb-icon name="fb-eye"></fb-icon> 查看 View</button>
+    <button class="btn-danger-line"><fb-icon name="fb-trash"></fb-icon> 刪除 Delete</button>
+    <button class="btn-neutral-outline">關閉 Close</button>
+  </div></div>
+
+  <h2>行事曆清單類型標籤（.cal-tag，對照 Figma tag/basic）</h2>
+  <p class="fig">首頁行事曆「服務／活動」分頁「類型」欄用；頁面專屬 class。</p>
+  <div class="demo"><div class="row" style="align-items:center">
+    <span class="cal-tag cal-tag--info">一對一訪談</span>
+    <span class="cal-tag cal-tag--success">實體拜訪</span>
+    <span class="cal-tag cal-tag--warning">內部研討會</span>
+    <span class="cal-tag cal-tag--promotion">法說會</span>
+    <span class="cal-tag cal-tag--await">電話訪問</span>
+    <span class="cal-tag cal-tag--error">投資分析師會議</span>
+  </div></div>
+
+  <h2>無行程空狀態（.cal-empty，）</h2>
+  <div class="demo">
+    <div class="cal-empty">
+      <span class="cal-empty__ic"><fb-icon name="fb-search"></fb-icon></span>
+      <p class="cal-empty__zh">本日尚無行程</p>
+      <p class="cal-empty__en">No Schedule Yet</p>
+      <button class="btn-outline"><fb-icon name="fb-plus"></fb-icon>新增行程 Add</button>
+    </div>
+  </div>
+
+  <h2>fb-tooltip（溢出文字提示，data-tip）</h2>
+  <p class="fig">。帶 <code>data-tip</code> 的元素：hover / focus 顯示深底白字帶三角浮層；若有截斷樣式則僅在文字實際溢出時顯示。</p>
+  <div class="demo"><div class="row">
+    <div class="col">
+      <div style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+           data-tip="這是一段會被截斷的長文字，hover 後應顯示完整內容的自訂 tooltip">這是一段會被截斷的長文字，hover 後應顯示完整內容</div>
+      <p class="fig">↑ 截斷 → 顯示</p>
+    </div>
+    <div class="col">
+      <div style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+           data-tip="短字，不應顯示">短字，不應顯示</div>
+      <p class="fig">↑ 未截斷 → 不顯示</p>
+    </div>
+    <div class="col">
+      <button class="btn-outline" data-tip="無截斷樣式時作為一般提示，一律顯示">一般提示按鈕</button>
+    </div>
+  </div></div>
+
+  <h2>Token 抽樣</h2>
+  <div class="demo"><div class="swatches">
+    <div class="sw"><i style="background:var(--bg-container-primary-var2)"></i>bg-container-primary-var2</div>
+    <div class="sw"><i style="background:var(--bg-container-primary)"></i>bg-container-primary</div>
+    <div class="sw"><i style="background:var(--bg-subtle)"></i>bg-subtle</div>
+    <div class="sw"><i style="background:var(--border-line)"></i>border-line</div>
+    <div class="sw"><i style="background:var(--accent-danger)"></i>accent-danger</div>
+    <div class="sw"><i style="background:var(--accent-success)"></i>accent-success</div>
+  </div></div>
+</div>
+
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+  (function () {
+    fbLinkRange(document.getElementById('lrStart'), document.getElementById('lrEnd'), { kind: 'date' });
+    fbLinkRange(document.getElementById('lrStartT'), document.getElementById('lrEndT'), { kind: 'time' });
+    fbLinkRange(document.getElementById('lrStartDT'), document.getElementById('lrEndDT'), { kind: 'datetime' });
+    var dlg = document.getElementById('ksSched');
+    var out = document.getElementById('ksSchedOut');
+    document.getElementById('ksSchedTimed').addEventListener('click', function () {
+      dlg.setAttribute('mode', 'timed'); dlg.open({ allDay: false, startDate: '2026/08/24', endDate: '2026/08/24', start: '09:00', end: '10:00' });
+    });
+    document.getElementById('ksSchedAllday').addEventListener('click', function () {
+      dlg.setAttribute('mode', 'allday'); dlg.open({ allDay: true, startDate: '2026/08/24', endDate: '2026/08/25' });
+    });
+    var tr = document.getElementById('ksTransfer');
+    var trOut = document.getElementById('ksTransferOut');
+    if (tr) {
+      trOut.textContent = 'value: ' + JSON.stringify(tr.value);
+      tr.addEventListener('transfer-change', function (e) { trOut.textContent = 'value: ' + JSON.stringify(e.detail.value); });
+    }
+
+    var pg = document.getElementById('ksPager');
+    var pgOut = document.getElementById('ksPagerOut');
+    if (pg) {
+      pgOut.textContent = 'page ' + pg.page + ' / ' + pg.pageCount + '（每頁 ' + pg.pageSize + '）';
+      pg.addEventListener('page-change', function (e) {
+        pgOut.textContent = 'page-change: ' + JSON.stringify(e.detail) + '（共 ' + pg.pageCount + ' 頁）';
+      });
+    }
+    dlg.addEventListener('submit', function (e) { out.textContent = 'submit: ' + JSON.stringify(e.detail); });
+    dlg.addEventListener('cancel', function () { out.textContent = 'cancel'; });
+
+    var cd = document.getElementById('ksConfirmDlg');
+    var cout = document.getElementById('ksConfirmOut');
+    document.getElementById('ksConfirm').addEventListener('click', function () {
+      cd.open({ heading: '刪除行程', headingEn: 'Delete Schedule', title: '請確認是否要刪除行程', desc: '已刪除的行程將不會顯示在行事曆上', confirmLabel: '刪除', confirmLabelEn: 'Delete', tone: 'danger' });
+    });
+    cd.addEventListener('confirm', function () { cout.textContent = 'confirm'; });
+    cd.addEventListener('cancel', function () { cout.textContent = 'cancel'; });
+
+    document.getElementById('ksToast').addEventListener('click', function () {
+      document.getElementById('ksToastEl').show('行程已新增');
+    });
+    document.getElementById('ksToastDesc').addEventListener('click', function () {
+      document.getElementById('ksToastEl').show('資料已匯出', { desc: '檔案密碼預設為您的「登入帳號」' });
+    });
+    document.getElementById('ksToastDanger').addEventListener('click', function () {
+      document.getElementById('ksToastEl').show('資料匯出失敗', { tone: 'danger', desc: '請稍後再試，或縮小查詢範圍後重新匯出' });
+    });
+
+    var perm = document.getElementById('ksPerm');
+    var permOut = document.getElementById('ksPermOut');
+    perm.addEventListener('perm-change', function (e) {
+      permOut.textContent = 'perm-change: 已勾選 ' + e.detail.checked + '/' + e.detail.total +
+        '，資料匯出特權 ' + e.detail.exportChecked;
+    });
+    document.getElementById('ksPermAll').addEventListener('click', function () { perm.selectAll(); });
+    document.getElementById('ksPermNone').addEventListener('click', function () { perm.clearAll(); });
+    document.getElementById('ksPermSet').addEventListener('click', function () {
+      perm.setSelection({ home: 'all', marketing: ['客戶訪談與服務紀錄'], report: { '報表中心業績與佔比': ['read', 'export'] } });
+    });
+
+    var ksPill = document.getElementById('ksPill');
+    ksPill.addEventListener('pill-click', function () {
+      var next = ksPill.getAttribute('state') === 'on' ? 'off' : 'on';
+      ksPill.setAttribute('state', next);
+      document.getElementById('ksPillOut').textContent = 'pill-click → ' + next;
+    });
+
+    var km = document.getElementById('ksModal');
+    var kmo = document.getElementById('ksModalOut');
+    document.getElementById('ksModalOpen').addEventListener('click', function () { km.open(); });
+    km.addEventListener('modal-open', function () { kmo.textContent = 'modal-open'; });
+    km.addEventListener('modal-close', function () { kmo.textContent = 'modal-close'; });
+
+    var exp = document.getElementById('ksExpDlg');
+    var expOut = document.getElementById('ksExpOut');
+    document.getElementById('ksExpDefault').addEventListener('click', function () { exp.open(); });
+    document.getElementById('ksExpMs').addEventListener('click', function () { exp.open({ marketShareMode: true }); });
+    document.getElementById('ksExpPartial').addEventListener('click', function () { exp.open({ partialMonthMode: true }); });
+    exp.addEventListener('export', function (e) { expOut.textContent = 'export: ' + JSON.stringify(e.detail); });
+    exp.addEventListener('cancel', function () { expOut.textContent = 'cancel'; });
+
+    var bx = document.getElementById('ksBxDlg');
+    var bxOut = document.getElementById('ksBxOut');
+    document.getElementById('ksBxUnder').addEventListener('click', function () { bx.open({ count: 1500 }); });
+    document.getElementById('ksBxOver').addEventListener('click', function () { bx.open({ count: 10000, limit: 2000 }); });
+    bx.addEventListener('export', function (e) { bxOut.textContent = 'export: ' + JSON.stringify(e.detail); });
+    bx.addEventListener('cancel', function () { bxOut.textContent = 'cancel'; });
+  })();
+</script>
+</body>
+</html>

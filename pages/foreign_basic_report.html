@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>境外客戶報表</title>
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body class="no-en no-dd-count">
+  <!-- ============ 1. 頂部導覽 ============ -->
+  <fb-topnav active="report-zone"></fb-topnav>
+
+  <main class="page">
+    <!-- ============ 2. 頁面標題 ============ -->
+    <fb-area-title zh="境外客戶報表"></fb-area-title>
+
+    <!-- ============ 4. Filter ============ -->
+    <section class="filter">
+      <div class="filter__grid">
+        <div class="field"><label>績效指標</label><fb-dropdown type="single" data-k="kpi"><script type="application/json">{"options":["銷售量","淨收益","佔比"],"value":"淨收益"}</script></fb-dropdown></div>
+        <div class="field"><label>商品</label><fb-dropdown type="single" data-k="product"><script type="application/json">{"options":["標準方案","進階方案","企業方案","境內方案","境外方案"],"value":"標準方案"}</script></fb-dropdown></div>
+        <div class="field">
+          <label>資料日期 (起)</label>
+          <fb-date-field data-k="start" value="2025/01/01"></fb-date-field>
+        </div>
+        <div class="field">
+          <label>資料日期 (訖)</label>
+          <fb-date-field data-k="end" value="2026/08/30"></fb-date-field>
+        </div>
+      </div>
+
+      <div class="filter__grid">
+        <div class="field"><label>集團戶</label><fb-dropdown type="multi" search data-k="affiliate"><script type="application/json">{"options":["集團戶","一般"]}</script></fb-dropdown></div>
+        <div class="field"><label>客戶類型</label><fb-dropdown type="multi" search data-k="entity"><script type="application/json">{"options":["客戶類型","一般"]}</script></fb-dropdown></div>
+        <div class="field"><label>產業類別</label><fb-dropdown type="multi" search data-k="category"><script type="application/json">{"options":["科技業","製造業","金融業","物流業","零售業","境外"]}</script></fb-dropdown></div>
+        <div class="field"><label>境外分類</label><fb-dropdown type="multi" search data-k="foreignCategory"><script type="application/json">{"options":["外商類","專案類"]}</script></fb-dropdown></div>
+      </div>
+
+      <div class="filter__actions">
+        <button class="btn-text muted" id="btnReset" type="button">
+          <fb-icon name="fb-reset"></fb-icon>
+          重設
+        </button>
+        <button class="btn-primary" id="btnSearch" type="button">
+          <fb-icon name="fb-search"></fb-icon>
+          查詢
+        </button>
+      </div>
+    </section>
+
+    <!-- ============ 5. Table 操作列 ============ -->
+    <div class="table-ops">
+      <div class="ops-left" id="opsLeft"></div>
+      <div class="ops-right">
+        <span class="updated">交易資料最新日期：2026/08/28</span>
+        <button class="btn-outline" id="btnExport" type="button">
+          <fb-icon name="fb-export"></fb-icon>
+          匯出報表
+        </button>
+      </div>
+    </div>
+
+    <div class="table-block table-block--tall">
+      <div class="table-clip">
+        <div class="table-wrap">
+          <table class="report report--foreign" id="report"></table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <fb-export-dialog id="exportDlg"></fb-export-dialog>
+  <fb-toast id="reportToast"></fb-toast>
+
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+/* ---------- icons（共用 registry，見 assets/js/icons.js）---------- */
+const IC = { plus: FbIcon.svg('fb-plus'), minus: FbIcon.svg('fb-minus') };
+const sortIcon = dir => FbIcon.sort(dir);
+
+/* ---------- column model ---------- */
+const MONTHS = Array.from({length:12}, (_,i)=> (i+1)+'月');
+const WEEKS  = ['第1週','第2週','第3週','第4週','第5週'];
+const WEEK_W = [0.22, 0.20, 0.19, 0.21, 0.18];          // 週佔比（合計 1.0）
+/* 把某月數值拆成 5 週，最後一週補差額確保加總一致 */
+const weekVals = m => {
+  const v = WEEK_W.slice(0, 4).map(w => Math.round(m * w));
+  v.push(m - v.reduce((a,b)=>a+b, 0));
+  return v;
+};
+
+/* 4 repeating value patterns observed in the Figma design (Jan..Dec) */
+const PAT = {
+  A: [5679,533,5226,2263,6311,6172,224,8189,3242,9764,4517,7088],
+  B: [1134,5168,2307,6606,9585,3789,4401,6492,8979,7132,5560,8241],
+  C: [4098,8660,1670,3232,284,1830,4724,5249,3296,4296,6913,2075],
+  D: [10023,14002,11025,17485,16294,18694,8856,24260,18287,26283,15920,21044]
+};
+
+/* ---------- row model : matches the Frozen List (Group) tree ---------- */
+/* cols: [集團戶, 客戶類型, 產業類別, 境外分類, 客戶群/代號]  (blank = '') ; kind: grand | sub | detail
+   客戶群/代號欄合併呈現「{名稱} / {代號}」單行文字（例："北辰科技 / C001"）
+   toggleCol = index of the label column that carries the expand [-] button
+   比照 Figma 具體範例（ 全展開狀態）還原：每個「產業類別」底下都還有一層
+   可收合子群組（toggleCol=3，欄位沿用「境外分類」欄名），子群組之下才是客戶群列；
+   「客戶類型=一般、產業類別=境外」下方進一步拆成「外商類」「專案類」兩個子群組 */
+const ROWS = [
+  {id:'total', parent:null, kind:'grand',  cols:['總計','','','',''],                 ytd:53953, pat:'A'},
+
+  {id:'aff1',  parent:null, kind:'sub',    cols:['集團戶','','','',''], toggleCol:0, ytd:65173, pat:'B'},
+    {id:'aff1-g1', parent:'aff1', kind:'sub', cols:['','客戶類型','科技業','',''], toggleCol:2, ytd:66878, pat:'C'},
+      {id:'aff1-g1-sub', parent:'aff1-g1', kind:'sub', cols:['','','','科技類',''], toggleCol:3, ytd:66878, pat:'C'},
+        {id:'aff1-g1-1', parent:'aff1-g1-sub', kind:'detail', cols:['','','','','北辰科技 / C001'],  ytd:49204, pat:'D'},
+    {id:'aff1-g2', parent:'aff1', kind:'sub', cols:['','客戶類型','製造業','',''], toggleCol:2, ytd:72489, pat:'A'},
+      {id:'aff1-g2-sub', parent:'aff1-g2', kind:'sub', cols:['','','','製造類',''], toggleCol:3, ytd:72489, pat:'A'},
+        {id:'aff1-g2-1', parent:'aff1-g2-sub', kind:'detail', cols:['','','','','安泰製造 / C002'],  ytd:58312, pat:'A'},
+        {id:'aff1-g2-2', parent:'aff1-g2-sub', kind:'detail', cols:['','','','','恆信製造 / C003'],  ytd:74205, pat:'B'},
+    {id:'aff1-g3', parent:'aff1', kind:'sub', cols:['','客戶類型','金融業','',''], toggleCol:2, ytd:60977, pat:'C'},
+      {id:'aff1-g3-sub', parent:'aff1-g3', kind:'sub', cols:['','','','金融類',''], toggleCol:3, ytd:60977, pat:'C'},
+        {id:'aff1-g3-1', parent:'aff1-g3-sub', kind:'detail', cols:['','','','','星河金融 / C004'],  ytd:68431, pat:'D'},
+        {id:'aff1-g3-2', parent:'aff1-g3-sub', kind:'detail', cols:['','','','','遠見金融 / C005'],  ytd:55690, pat:'A'},
+        {id:'aff1-g3-3', parent:'aff1-g3-sub', kind:'detail', cols:['','','','','盛達金融 / C006'],  ytd:77842, pat:'A'},
+
+  {id:'aff2',  parent:null, kind:'sub',    cols:['一般','','','',''], toggleCol:0, ytd:62119, pat:'B'},
+    {id:'aff2-g1', parent:'aff2', kind:'sub', cols:['','一般','物流業','',''], toggleCol:2, ytd:61284, pat:'D'},
+      {id:'aff2-g1-sub', parent:'aff2-g1', kind:'sub', cols:['','','','物流類',''], toggleCol:3, ytd:61284, pat:'D'},
+        {id:'aff2-g1-1', parent:'aff2-g1-sub', kind:'detail', cols:['','','','','迅捷物流 / C007'],   ytd:75675, pat:'A'},
+        {id:'aff2-g1-2', parent:'aff2-g1-sub', kind:'detail', cols:['','','','','通達物流 / C008'],   ytd:54763, pat:'B'},
+        {id:'aff2-g1-3', parent:'aff2-g1-sub', kind:'detail', cols:['','','','','鴻運物流 / C009'],   ytd:67821, pat:'C'},
+        {id:'aff2-g1-4', parent:'aff2-g1-sub', kind:'detail', cols:['','','','','順風物流 / C010'],   ytd:63405, pat:'D'},
+        {id:'aff2-g1-5', parent:'aff2-g1-sub', kind:'detail', cols:['','','','','快捷物流 / C011'],   ytd:71290, pat:'A'},
+    {id:'aff2-g2', parent:'aff2', kind:'sub', cols:['','一般','零售業','',''], toggleCol:2, ytd:56148, pat:'B'},
+      {id:'aff2-g2-sub', parent:'aff2-g2', kind:'sub', cols:['','','','零售類',''], toggleCol:3, ytd:56148, pat:'B'},
+        {id:'aff2-g2-1', parent:'aff2-g2-sub', kind:'detail', cols:['','','','','晨光零售 / C012'], ytd:64987, pat:'C'},
+        {id:'aff2-g2-2', parent:'aff2-g2-sub', kind:'detail', cols:['','','','','悅家零售 / C013'], ytd:76103, pat:'D'},
+        {id:'aff2-g2-3', parent:'aff2-g2-sub', kind:'detail', cols:['','','','','優購零售 / C014'], ytd:58756, pat:'A'},
+        {id:'aff2-g2-4', parent:'aff2-g2-sub', kind:'detail', cols:['','','','','樂購零售 / C015'],     ytd:69934, pat:'B'},
+        {id:'aff2-g2-5', parent:'aff2-g2-sub', kind:'detail', cols:['','','','','嘉美零售 / C016'],     ytd:62507, pat:'C'},
+    {id:'aff2-g3', parent:'aff2', kind:'sub', cols:['','一般','境外','',''], toggleCol:2, ytd:59870, pat:'C'},
+      {id:'aff2-g3-fc1', parent:'aff2-g3', kind:'sub', cols:['','','','外商類',''], toggleCol:3, ytd:48213, pat:'A'},
+        {id:'aff2-g3-fc1-1', parent:'aff2-g3-fc1', kind:'detail', cols:['','','','','藍海企業 / C017'], ytd:52076, pat:'B'},
+        {id:'aff2-g3-fc1-2', parent:'aff2-g3-fc1', kind:'detail', cols:['','','','','遠洋企業 / C018'],   ytd:44930, pat:'C'},
+      {id:'aff2-g3-fc2', parent:'aff2-g3', kind:'sub', cols:['','','','專案類',''], toggleCol:3, ytd:56714, pat:'D'},
+        {id:'aff2-g3-fc2-1', parent:'aff2-g3-fc2', kind:'detail', cols:['','','','','極光專案 / C019'],     ytd:61582, pat:'A'},
+        {id:'aff2-g3-fc2-2', parent:'aff2-g3-fc2', kind:'detail', cols:['','','','','瀚海專案 / C020'], ytd:53097, pat:'B'},
+];
+
+const nf = n => n.toLocaleString('en-US');
+
+/* 境外凍結標籤欄寬度：集團戶/客戶類型/產業類別/境外分類（index 0~3）與
+   客戶群/代號合併欄（index 4）皆比一般標籤欄（104px）縮窄，讓右側年度月份欄位
+   有更多可視空間；明細表額外的客戶全銜/帳號/ID/業務窗口（index 5~8）維持 104px 不變。
+   與 assets/css/tokens.css 的 --col-label-w-foreign / --col-label-w-party 對應 */
+const FOREIGN_LABEL_W = 96;
+const PARTY_COL_W = 110;
+
+/* ---------- state ---------- */
+const collapsedRows = new Set();      // row ids whose children are hidden
+/* 預設：全部展開（不收合任何群組列）；載入與「重設」皆呼叫此函式，兩者行為一致 */
+function seedCollapsed(){
+  collapsedRows.clear();
+}
+const openMonth = { 2025: null, 2026: 7 };   // 該年度目前展開週資料的月份 index（橫向展開，單選；2026 預設展開 8月）
+let sort = null;                      // { col: <key>, dir: 'asc' | 'desc' }
+let y2025 = false;                    // 2025（前一年）1~12月 是否展開
+let y2026 = true;                     // 2026 1~12月 是否展開
+let mode = 'overview';                // 'overview' | 'detail'（客戶群明細）
+let detailTabs = [];                  // [{ key, path:[集團戶,客戶類型,產業類別,境外分類,客戶群/代號], rows }]
+let activeTab = -1;                   // detailTabs index；-1 = 未選（總覽表）
+
+const tabKey = path => path.join('|');
+
+/* 從總覽表的客戶群連結進入明細：已存在則切換該分頁，否則新增分頁 */
+function enterDetail(row){
+  const path = groupPath(row);
+  const key = tabKey(path);
+  let i = detailTabs.findIndex(t => t.key === key);
+  if (i < 0) { detailTabs.push({ key, path, rows: makeDetailRows(path) }); i = detailTabs.length - 1; }
+  openTab(i);
+}
+function openTab(i){
+  activeTab = i; mode = 'detail'; sort = null; collapsedRows.clear();
+  build();
+  wrap.scrollTop = 0;
+}
+function closeTab(i){
+  const wasActive = i === activeTab;
+  detailTabs.splice(i, 1);
+  if (detailTabs.length === 0 || wasActive) { activeTab = -1; mode = 'overview'; }
+  else if (i < activeTab) { activeTab--; }
+  sort = null;
+  build();
+}
+/* 返回：回總覽表，但保留分頁標籤（可再點分頁回到該明細）*/
+function exitDetail(){
+  mode = 'overview'; activeTab = -1; sort = null;
+  build();
+}
+
+/* 週佔比種子 -> ±3.0% 的假 月增率 / 年增率（參考 Figma：正=紅、負=綠） */
+const pseudoPct = seed => ((((seed % 61) + 61) % 61) - 30) / 10;
+const fmtPct = v => v.toFixed(1) + '%';
+
+/* ---------- render ---------- */
+const LABELS = [
+  ['集團戶',''],
+  ['客戶類型',''],
+  ['產業類別',''],
+  ['境外分類',''],
+  ['客戶群/代號',''],
+];
+
+/* ---------- 客戶群明細（drill-down）---------- */
+const DETAIL_LABELS = [
+  ['集團戶',''],
+  ['客戶類型',''],
+  ['產業類別',''],
+  ['境外分類',''],
+  ['客戶群/代號',''],
+  ['客戶全銜',''],
+  ['帳號',''],
+  ['ID',''],
+  ['業務窗口',''],
+];
+const CLIENT_NAMES = ['北辰實業','安泰貿易','恆信工業','星河資訊','遠見科技','盛達材料','迅捷運輸','通達倉運','鴻運商貿','順風百貨','快捷倉儲','晨光食品','悅家生活','優購通路','樂購電商'];
+const CLIENT_IDS = ['ID-0001','ID-0002','ID-0003','ID-0004','ID-0005','ID-0006','ID-0007','ID-0008','ID-0009','ID-0010','ID-0011','ID-0012','ID-0013','ID-0014','ID-0015'];
+const CLIENT_REPS = ['王小明','李小華','陳大文','林小美','張小龍','黃小玲','吳小強','周小芸','徐小凱','孫小婷','馬小志','朱小雅','胡小傑','郭小晴','何小宇'];
+const PAT_KEYS = ['A','B','C','D'];
+
+/* 依 row 及其祖先，補齊 [集團戶, 客戶類型, 產業類別, 境外分類, 客戶群/代號] 五欄 */
+function groupPath(row){
+  const out = ['','','','',''];
+  let r = row;
+  while (r){
+    r.cols.forEach((c,i)=>{ if (c && !out[i]) out[i] = c; });
+    r = r.parent ? ROWS.find(x=> x.id === r.parent) : null;
+  }
+  return out;
+}
+/* 產生某客戶群底下的帳戶明細列 */
+function makeDetailRows(path){
+  return Array.from({length: 15}, (_,i)=>({
+    kind: 'detail',
+    cols: [ path[0], path[1], path[2], path[3], path[4],
+            CLIENT_NAMES[i % CLIENT_NAMES.length],
+            String(9812345 + i),
+            CLIENT_IDS[i % CLIENT_IDS.length],
+            CLIENT_REPS[i % CLIENT_REPS.length] ],
+    ytd: 50000 + ((i * 4099) % 30000),
+    pat: PAT_KEYS[i % 4],
+  }));
+}
+
+function renderOpsLeft(){
+  const host = document.getElementById('opsLeft');
+  if (detailTabs.length === 0) { host.innerHTML = ''; return; }
+  /* 「返回」僅在客戶群明細（detail）模式顯示；總覽模式即使保留分頁標籤也不顯示 */
+  const backBtn = mode === 'detail'
+    ? '<button class="btn-back" id="btnBack" type="button">' + FbIcon.svg('fb-chevron-left') + '返回</button>'
+    : '';
+  host.innerHTML = backBtn + '<div class="tab-chips"></div>';
+  const chipWrap = host.querySelector('.tab-chips');
+  detailTabs.forEach((t, i) => {
+    const c = document.createElement('fb-chip');
+    c.setAttribute('closable', '');
+    if (i === activeTab) c.setAttribute('active', '');
+    c.setAttribute('label', t.path.filter(Boolean).join(', '));
+    c.addEventListener('chip-select', () => openTab(i));
+    c.addEventListener('chip-close', () => closeTab(i));
+    chipWrap.appendChild(c);
+  });
+  const bb = host.querySelector('#btnBack');
+  if (bb) bb.addEventListener('click', exitDetail);
+}
+
+function build(opts) {
+  const keepScroll = !!(opts && opts.keepScroll);
+  const prevScrollLeft = wrap ? wrap.scrollLeft : 0;
+  const prevScrollTop = wrap ? wrap.scrollTop : 0;
+  const prevWindowScrollY = window.scrollY;
+  const t = document.getElementById('report');
+  t.innerHTML = '';
+
+  const inDetail = mode === 'detail' && activeTab >= 0;
+  const activeRows = inDetail ? detailTabs[activeTab].rows : null;
+  const LBLS = inDetail ? DETAIL_LABELS : LABELS;
+  const FCOUNT = LBLS.length;
+  t.classList.toggle('report--detail', inDetail);
+  renderOpsLeft();
+
+  /* ---- 依 filter 判定模式：績效指標＝佔比、資料日期(起)非 1 號 ---- */
+  const kpiEl = document.querySelector('fb-dropdown[data-k="kpi"]');
+  const startEl = document.querySelector('fb-date-field[data-k="start"]');
+  const kpi = kpiEl ? kpiEl.value : '淨收益';
+  const startDD = (startEl && startEl.value ? startEl.value : '').slice(8, 10);
+  const partialMonth = startDD !== '' && startDD !== '01';   // 非整月簡化模式
+  const isMarketShare = kpi === '佔比';
+  const CUM_LABEL = { '淨收益':'累計淨收益', '銷售量':'累計銷售量', '佔比':'累計佔比' }[kpi] || ('累計' + kpi);
+
+  /* 年度：收合 -> 1 欄 年累計；展開 -> 12 月。月份 [+] -> 於「該月」右側「橫向」接上
+     第1~5週 + 分析欄（月累計 / 月化 / 月增率 / 年累計 / 年增率），與週資料同一收合層級，每年度單選一個月。
+     佔比時分析欄不含「月化」。（參考 ） */
+  const MONTH_TAIL = isMarketShare ? ['月累計', '月增率', '年累計', '年增率'] : ['月累計', '月化', '月增率', '年累計', '年增率'];
+  /* 某展開月份的單一分析欄描述（cum = 至該月的累計） */
+  function monthTailColumn(year, mi, key) {
+    const cum = r => PAT[r.pat].slice(0, mi + 1).reduce((a,b)=>a+b, 0);
+    const D = {
+      '月累計':  { kind:'num', value: r => PAT[r.pat][mi] },
+      '月化': { kind:'num', value: r => Math.round(cum(r) / (mi + 1) * 12) },
+      '月增率':  { kind:'pct', value: r => pseudoPct(r.ytd + mi*13) },
+      '年累計':  { kind:'num', value: cum },
+      '年增率':  { kind:'pct', value: r => pseudoPct(r.ytd*3 + mi*7) },
+    }[key];
+    return { key: year+':m'+mi+'-'+key, label: key, kind: D.kind, tail: true, value: D.value };
+  }
+
+  const YEARS = [
+    { year: 2025, expanded: y2025, toggleId: 'y2025Toggle', monthCount: 12, ytd: r => r.ytd },
+    { year: 2026, expanded: y2026, toggleId: 'y2026Toggle', monthCount: 8, ytd: r => PAT[r.pat].reduce((a,b)=>a+b, 0) },
+  ];
+  /* 一個年度區佔的資料欄數（分析欄只在展開某月時、收在該月內） */
+  const yearCols = Y => !Y.expanded ? 1
+    : Y.monthCount + (openMonth[Y.year] != null ? WEEKS.length + MONTH_TAIL.length : 0);
+
+  /* ---- 統一的資料欄描述（表頭與內容共用，確保對齊）---- */
+  const columns = [];
+  if (partialMonth) {
+    /* 非整月簡化模式：不做年度/月份/週/分析欄展開，只留單一「累計{績效指標}」欄 */
+    columns.push({ key: 'partial:cum', label: CUM_LABEL, kind: 'num',
+                   value: r => (r.ytd != null ? r.ytd : PAT[r.pat].reduce((a,b)=>a+b, 0)) });
+  } else {
+    YEARS.forEach(Y=>{
+      if (!Y.expanded) {
+        columns.push({ key: Y.year+':ytd', label:'年累計', kind:'num', value: r => Y.ytd(r) });
+        return;
+      }
+      MONTHS.slice(0, Y.monthCount).forEach((m,mi)=>{
+        columns.push({ key: Y.year+':m'+mi, label:m, kind:'num', isMonth:true, year:Y.year, mi,
+                       value: r => PAT[r.pat][mi] });
+        if (openMonth[Y.year] === mi) {
+          // 週資料 + 分析欄，直接橫向接在「該月」右側
+          WEEKS.forEach((w,wi)=> columns.push({ key: Y.year+':m'+mi+'w'+wi, label:w, kind:'num', week:true,
+                       value: r => weekVals(PAT[r.pat][mi])[wi] }));
+          MONTH_TAIL.forEach(k => columns.push(monthTailColumn(Y.year, mi, k)));
+        }
+      });
+    });
+  }
+
+  /* exact table width；小於容器時改為平均填滿（report--fill）
+     label 欄寬非單一值：index 0~3 為 FOREIGN_LABEL_W、index 4 為 PARTY_COL_W，
+     明細表 index 5 以後（客戶全銜/帳號/ID/業務窗口）維持一般標籤欄寬 104px */
+  const totalW = 4 * FOREIGN_LABEL_W + PARTY_COL_W + Math.max(0, FCOUNT - 5) * 104 + columns.length * 74;
+  const containerW = wrap ? wrap.clientWidth : 0;
+  const fillContainer = containerW > 0 && totalW < containerW;
+  t.classList.toggle('report--fill', fillContainer);
+  t.style.width = fillContainer ? '100%' : (totalW + 'px');
+
+  /* colgroup（依實際 columns 數，與簡化/展開模式一致） */
+  const cg = document.createElement('colgroup');
+  LBLS.forEach(()=> { const c=document.createElement('col'); c.className='c-label'; cg.appendChild(c); });
+  columns.forEach(()=> { const c=document.createElement('col'); c.className='c-data'; cg.appendChild(c); });
+  t.appendChild(cg);
+
+  /* ---- thead : row1 年度 / row2 月份(+週+分析) 或 年累計 ---- */
+  const thead = document.createElement('thead');
+
+  const r1 = document.createElement('tr');
+  LBLS.forEach((L,i)=>{
+    const th = document.createElement('th');
+    th.className = 'h-label freeze f'+i;
+    th.rowSpan = 2;
+    th.innerHTML = L[0] + (L[1] ? '<span class="en">' + L[1] + '</span>' : '');
+    r1.appendChild(th);
+  });
+  if (partialMonth) {
+    /* 簡化模式：無年度列，單一「累計{績效指標}」欄跨兩列 */
+    const th = document.createElement('th');
+    th.className = 'h-year';
+    th.rowSpan = 2;
+    th.innerHTML = '<span class="hcell">' + CUM_LABEL +
+      ' <span class="sort-ic" data-col="partial:cum" role="button" title="排序（僅排該產業類別內的客戶群）">'
+      + sortIcon(sort && sort.col === 'partial:cum' ? sort.dir : null) + '</span></span>';
+    r1.appendChild(th);
+    thead.appendChild(r1);
+    thead.appendChild(document.createElement('tr'));   // r2：無資料欄（label 與累計欄皆 rowSpan 2）
+  } else {
+    YEARS.forEach(Y=>{
+      const th = document.createElement('th');
+      th.className = 'h-year';
+      th.colSpan = yearCols(Y);
+      th.innerHTML = '<span class="hcell">'+Y.year+' <span class="icon-btn" id="'+Y.toggleId+'" title="'+
+        (Y.expanded ? '收合年度' : '展開年度')+'">'+(Y.expanded ? IC.minus : IC.plus)+'</span></span>';
+      r1.appendChild(th);
+    });
+    thead.appendChild(r1);
+
+    const r2 = document.createElement('tr');
+    columns.forEach(col=>{
+      const th = document.createElement('th');
+      th.className = 'h-month'
+        + (col.week ? ' h-week' : '')
+        + (col.tail ? ' h-tail' : '')
+        + (col.isMonth && openMonth[col.year] === col.mi ? ' h-month-open' : '');
+      let html = '<span class="hcell">' + col.label;
+      if (col.isMonth) {
+        const open = openMonth[col.year] === col.mi;
+        html += ' <span class="icon-btn month-toggle" data-key="'+col.year+'-'+col.mi+'" title="'+
+          (open ? '收合週資料' : '展開週資料')+'">'+(open ? IC.minus : IC.plus)+'</span>';
+      }
+      html += ' <span class="sort-ic" data-col="'+col.key+'" role="button" title="排序（僅排該產業類別內的客戶群）">'
+        + sortIcon(sort && sort.col === col.key ? sort.dir : null) + '</span></span>';
+      th.innerHTML = html;
+      r2.appendChild(th);
+    });
+    thead.appendChild(r2);
+  }
+  t.appendChild(thead);
+
+  /* ---- 排序：只重排「同一產業類別群組內」的客戶群(detail)列，其餘固定 ---- */
+  let rowsToRender = inDetail ? activeRows : ROWS;
+  if (sort) {
+    const col = columns.find(c => c.key === sort.col);
+    if (!col) { sort = null; }
+    else if (inDetail) {
+      rowsToRender = activeRows.slice().sort((a,b)=>{
+        const d = col.value(a) - col.value(b);
+        return sort.dir === 'asc' ? d : -d;
+      });
+    }
+    else {
+      rowsToRender = ROWS.slice();
+      const groups = {};
+      rowsToRender.forEach((r,idx)=>{ if (r.kind === 'detail') (groups[r.parent] = groups[r.parent] || []).push(idx); });
+      Object.values(groups).forEach(idxs=>{
+        const sorted = idxs.map(i => rowsToRender[i]).sort((a,b)=>{
+          const d = col.value(a) - col.value(b);
+          return sort.dir === 'asc' ? d : -d;
+        });
+        idxs.forEach((pos,k)=> { rowsToRender[pos] = sorted[k]; });
+      });
+    }
+  }
+
+  /* ---- tbody ---- */
+  const tb = document.createElement('tbody');
+
+  // is a row hidden because some ancestor is collapsed?
+  const isHidden = row => {
+    let p = row.parent;
+    while (p) {
+      if (collapsedRows.has(p)) return true;
+      p = (ROWS.find(r=>r.id===p)||{}).parent;
+    }
+    return false;
+  };
+
+  rowsToRender.forEach((row, ri)=>{
+    const tr = document.createElement('tr');
+    if (row.id) tr.dataset.id = row.id;
+    tr.className =
+      (row.kind==='grand' ? 'grandtotal' : row.kind==='sub' ? 'subtotal' : 'detail') +
+      (!inDetail && isHidden(row) ? ' hidden-row' : '');
+
+    // label columns (frozen)
+    row.cols.forEach((txt,i)=>{
+      const td = document.createElement('td');
+      td.className = 'label freeze f'+i;
+      const box = document.createElement('div');
+      box.className = 'cellbox';
+
+      if (!inDetail && row.toggleCol === i) {
+        const btn = document.createElement('span');
+        btn.className = 'icon-btn';
+        const isCol = collapsedRows.has(row.id);
+        btn.title = isCol ? '展開' : '收合';
+        btn.innerHTML = isCol ? IC.plus : IC.minus;
+        btn.addEventListener('click', ()=>{
+          if (collapsedRows.has(row.id)) collapsedRows.delete(row.id);
+          else collapsedRows.add(row.id);
+          build({ keepScroll: true });   // 展開/收合群組時保持捲動位置，畫面不跳動
+        });
+        box.appendChild(btn);
+      }
+      if (txt) {
+        const span = document.createElement('span');
+        // 溢出文字一律截斷＋hover 顯示完整（tooltip）
+        span.classList.add('truncate');
+        span.title = txt;
+        // 總覽表：客戶群/代號合併欄 (col index 4) on detail rows = link -> 進入客戶群明細
+        if (!inDetail && i === 4 && row.kind === 'detail') {
+          span.classList.add('link');
+          span.addEventListener('click', ()=> enterDetail(row));
+        }
+        span.textContent = txt;
+        box.appendChild(span);
+      }
+      td.appendChild(box);
+      tr.appendChild(td);
+    });
+
+    // 資料欄：依 columns 描述輸出，數值或百分比
+    columns.forEach(col=>{
+      const v = col.value(row);
+      const td = document.createElement('td');
+      td.className = 'num' + (col.kind === 'pct'
+        ? (v > 0 ? ' pct-up' : v < 0 ? ' pct-down' : '')
+        : '');
+      const text = col.kind === 'pct' ? fmtPct(v) : nf(v);
+      td.innerHTML = '<div class="cellbox"><span class="truncate">'+text+'</span></div>';
+      tr.appendChild(td);
+    });
+
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+  /* 排序等原地重繪：保留捲動位置，畫面不跳動；其餘情況回到最左 */
+  if (keepScroll) { wrap.scrollLeft = prevScrollLeft; wrap.scrollTop = prevScrollTop; }
+  else wrap.scrollLeft = 0;
+  /* 任何重繪都還原頁面捲動位置，避免表格變短時瀏覽器把 window 捲動夾回頂部 */
+  window.scrollTo(window.scrollX, prevWindowScrollY);
+
+  const t25 = document.getElementById('y2025Toggle');
+  if (t25) t25.addEventListener('click', ()=>{ y2025 = !y2025; build({ keepScroll: true }); });
+  const t26 = document.getElementById('y2026Toggle');
+  if (t26) t26.addEventListener('click', ()=>{ y2026 = !y2026; build({ keepScroll: true }); });
+
+  t.querySelectorAll('.month-toggle').forEach(b=>{
+    b.addEventListener('click', e=>{
+      e.stopPropagation();
+      const [yr, mi] = b.dataset.key.split('-').map(Number);
+      openMonth[yr] = (openMonth[yr] === mi) ? null : mi;   // 單選：同一月再點即收合
+      build({ keepScroll: true });
+    });
+  });
+
+  /* 排序 icon：none -> asc -> desc -> none */
+  t.querySelectorAll('.sort-ic[data-col]').forEach(el=>{
+    el.addEventListener('click', e=>{
+      e.stopPropagation();
+      const k = el.dataset.col;
+      if (!sort || sort.col !== k)      sort = { col: k, dir: 'asc' };
+      else if (sort.dir === 'asc')      sort.dir = 'desc';
+      else                              sort = null;
+      build({ keepScroll: true });
+    });
+  });
+}
+
+const wrap = document.querySelector('.table-wrap');
+
+/* 容器寬變化時重算「固定寬捲動 / 平均填滿」，帶 keepScroll 且 debounce 避免跳動 */
+let _resizeT = null;
+const _onWrapResize = () => {
+  clearTimeout(_resizeT);
+  _resizeT = setTimeout(() => build({ keepScroll: true }), 120);
+};
+if (typeof ResizeObserver === 'function') new ResizeObserver(_onWrapResize).observe(wrap);
+else window.addEventListener('resize', _onWrapResize);
+
+seedCollapsed();
+build();
+
+/* ---------- Filter 操作列按鈕 ---------- */
+const dateStartEl = document.querySelector('fb-date-field[data-k="start"]');
+const dateEndEl = document.querySelector('fb-date-field[data-k="end"]');
+const dateEndField = dateEndEl && dateEndEl.closest('.field');
+/* 起訖聯動：UI 上無法選出訖早於起 */
+if (dateStartEl && dateEndEl) fbLinkRange(dateStartEl, dateEndEl, { kind: 'date' });
+
+function clearDateRangeError(){
+  if (dateEndField){
+    dateEndField.classList.remove('is-invalid');
+    const em = dateEndField.querySelector('.field__err');
+    if (em) em.remove();
+  }
+}
+function dateRangeInvalid(){
+  return dateStartEl && dateEndEl && dateStartEl.value && dateEndEl.value && dateEndEl.value < dateStartEl.value;
+}
+
+document.getElementById('btnSearch').addEventListener('click', ()=>{
+  if (dateRangeInvalid()){
+    if (dateEndField){
+      dateEndField.classList.add('is-invalid');
+      if (!dateEndField.querySelector('.field__err')){
+        const em = document.createElement('span');
+        em.className = 'field__err';
+        em.textContent = '訖日不得早於起日';
+        dateEndField.appendChild(em);
+      }
+    }
+    document.getElementById('reportToast').show('訖日不得早於起日');
+    return;
+  }
+  clearDateRangeError();
+  // demo：重新渲染（實際應依 filter 條件重新取數）
+  build();
+});
+[dateStartEl, dateEndEl].forEach(el => el && el.addEventListener('change', clearDateRangeError));
+
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  mode = 'overview'; detailTabs = []; activeTab = -1;
+  seedCollapsed();
+  openMonth[2025] = null; openMonth[2026] = 7;
+  sort = null; y2025 = false; y2026 = true;
+  document.querySelectorAll('fb-dropdown, fb-date-field').forEach(el => el.reset && el.reset());
+  if (dateStartEl) dateStartEl.max = '';
+  if (dateEndEl) dateEndEl.min = '';
+  clearDateRangeError();
+  build();
+});
+/* ---------- 匯出報表：開啟自訂匯出對話框 ---------- */
+const exportDlg = document.getElementById('exportDlg');
+const reportToast = document.getElementById('reportToast');
+document.getElementById('btnExport').addEventListener('click', ()=>{
+  const kpiEl = document.querySelector('fb-dropdown[data-k="kpi"]');
+  const startEl = document.querySelector('fb-date-field[data-k="start"]');
+  const kpi = kpiEl ? kpiEl.value : '';
+  const startDD = (startEl && startEl.value ? startEl.value : '').slice(8, 10);
+  exportDlg.open({
+    marketShareMode: kpi === '佔比',
+    partialMonthMode: startDD !== '' && startDD !== '01',
+    foreignMode: true,
+  });
+});
+exportDlg.addEventListener('export', ()=>{
+  reportToast.show('資料已匯出', { desc: '檔案密碼預設為您的「登入帳號」' });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>代理人設定</title>
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<style>
+  /* 代理人設定頁專屬版面（僅引用 token，不含色值字面值）*/
+
+  /* 頁面標題與內容的間距（原分頁列已移除）*/
+  .area-title + * { margin-top: 24px; }
+
+  /* 儀表板統計卡*/
+  .as-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 24px 0; }
+  .as-dash {
+    display: flex; align-items: center; gap: 12px;
+    min-height: 92px; padding: 16px 40px 16px 24px;
+    background: var(--bg-surface); border: 1px solid var(--line);
+    border-radius: var(--radius-xl); box-shadow: var(--shadow-sm);
+  }
+  .as-dash__icon { width: 32px; height: 32px; flex: 0 0 auto; display: inline-flex; }
+  .as-dash__icon fb-icon { width: 100%; height: 100%; }
+  .as-dash__icon svg { width: 100%; height: 100%; display: block; }
+  .as-dash--live    .as-dash__icon { color: var(--color-orange-500); }
+  .as-dash--expire  .as-dash__icon { color: var(--accent-primary); }
+  .as-dash--upcoming .as-dash__icon { color: var(--color-green-500); }
+  .as-dash--history .as-dash__icon { color: var(--text-secondary); }
+  .as-dash__text {
+    flex: 1 1 auto; min-width: 0;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .as-dash__label {
+    font-size: var(--fs-md); line-height: var(--lh-md); font-weight: 600;
+    color: var(--text-secondary); white-space: nowrap;
+  }
+  .as-dash__label .en { display: block; }
+  .as-dash__value {
+    flex: 0 0 auto; font-size: 24px; line-height: 36px; font-weight: 700;
+    color: var(--color-ink); font-variant-numeric: tabular-nums;
+  }
+
+  .as-keyword {
+    display: flex; align-items: center; gap: var(--pad-sm);
+    height: 40px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg-surface);
+  }
+  .as-keyword svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--color-grey-500); }
+  .as-keyword input { flex: 1; border: 0; outline: 0; font: inherit; color: var(--color-ink); background: transparent; min-width: 0; }
+  .as-keyword input::placeholder { color: var(--text-placeholder); }
+
+  .as-actions { display: flex; justify-content: flex-end; gap: var(--pad-sm); margin: 20px 0 12px; }
+
+  /* 代理人表 */
+  .as-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .as-table col.c-delegator { width: 13%; }
+  .as-table col.c-agent     { width: 13%; }
+  .as-table col.c-scope     { width: 15%; }
+  .as-table col.c-period    { width: 12%; }
+  .as-table col.c-state     { width: 11%; }
+  .as-table col.c-edited    { width: 12%; }
+  .as-table col.c-ops       { width: 24%; }
+  .as-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--color-grey-100); color: var(--color-ink);
+    font-weight: var(--fw-medium); font-size: var(--fs-sm); line-height: var(--lh-sm);
+    text-align: left; padding: var(--pad-md) var(--pad-sm); white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+  }
+  .as-table thead th .hcell { display: inline-flex; align-items: center; gap: 4px; }
+  .as-table thead th .hcell__t { display: inline-flex; flex-direction: column; }
+  .as-table thead th .hcell__en { font-size: 12px; font-weight: var(--fw-regular); color: var(--color-grey-500); }
+  .as-table thead th .sort-ic { color: var(--color-grey-500); cursor: pointer; display: inline-flex; }
+  .as-table thead th .sort-ic svg { width: 16px; height: 16px; }
+  .as-table thead th .sort-ic:hover { color: var(--head-bg-primary); }
+  .as-table tbody td {
+    border-top: 1px solid var(--line);
+    padding: var(--pad-md) var(--pad-sm);
+    font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--cell-text);
+    vertical-align: middle;
+  }
+  .as-table tbody tr:hover td { background: var(--bg-hover-subtle); }
+
+  /* 兩行 cell：被代理人／指定代理人（主 + 次要文字）*/
+  .as-two__main { color: var(--color-ink); }
+  .as-two__sub  { color: var(--text-muted); font-size: 12px; line-height: 18px; }
+
+  /* 代理起訖時間：兩行文字樣式完全相同 */
+  .as-period { color: var(--cell-text); }
+  .as-period > div { font-size: var(--fs-sm); line-height: var(--lh-sm); }
+
+  /* 代理角色與權限範圍：預設一行，溢位隱藏並顯示 +N，hover/點擊展開 tooltip
+     */
+  .as-scope {
+    position: relative;
+    display: flex; flex-wrap: nowrap; gap: 6px; align-items: center;
+    overflow: hidden;
+  }
+  .as-role-tag {
+    display: inline-flex; align-items: center; min-height: 24px;
+    padding: 2px 8px; border-radius: var(--radius-xs);
+    font-size: var(--fs-sm); line-height: var(--lh-sm); white-space: nowrap; flex: 0 0 auto;
+    background: var(--color-grey-100); color: var(--text-secondary);
+    border: 1px solid var(--line);
+  }
+  .as-tag {
+    display: inline-flex; align-items: center; min-height: 24px;
+    padding: 2px 8px; border-radius: var(--radius-xs);
+    font-size: var(--fs-sm); line-height: var(--lh-sm); white-space: nowrap; flex: 0 0 auto;
+    border: 1px solid transparent;
+  }
+  .as-tag--cust { background: var(--tag-bg-error); color: var(--tag-text-error); border-color: var(--status-border-error); }
+  .as-tag--func { background: var(--tag-bg-await); color: var(--tag-text-await); border-color: var(--status-border-await); }
+
+  /* 溢位數量標籤 */
+  .as-more {
+    display: inline-flex; align-items: center; min-height: 24px; flex: 0 0 auto;
+    padding: 2px 8px; border-radius: var(--radius-xs); cursor: pointer;
+    font-size: var(--fs-sm); line-height: var(--lh-sm); white-space: nowrap;
+    background: var(--color-grey-100); color: var(--text-secondary); border: 1px solid var(--line);
+  }
+  /* 展開的隱藏標籤 tooltip（掛在 body，避開表格 overflow:hidden）*/
+  .as-tip {
+    position: absolute; z-index: 60;
+    display: flex; flex-wrap: wrap; gap: 6px; max-width: 320px;
+    padding: 8px; border-radius: var(--radius-sm);
+    background: var(--bg-surface); border: 1px solid var(--line); box-shadow: var(--shadow-pop);
+  }
+  .as-tip[hidden] { display: none; }
+  .as-tip .as-role-tag {
+    display: inline-flex; align-items: center; min-height: 24px;
+    padding: 2px 8px; border-radius: var(--radius-xs); white-space: nowrap;
+    font-size: var(--fs-sm); line-height: var(--lh-sm);
+    background: var(--color-grey-100); color: var(--text-secondary); border: 1px solid var(--line);
+  }
+
+  /* 代理狀態：12px 圓點 + 文字*/
+  .as-state { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: var(--fs-sm); line-height: var(--lh-sm); }
+  .as-state::before {
+    content: ""; width: 12px; height: 12px; border-radius: 999px; flex: 0 0 auto;
+  }
+  .as-state--live      { color: var(--color-green-500); }
+  .as-state--live::before      { background: var(--color-green-500); }
+  .as-state--scheduled { color: var(--status-border-promotion); }
+  .as-state--scheduled::before { background: var(--status-border-promotion); }
+  .as-state--expired   { color: var(--text-secondary); }
+  .as-state--expired::before   { border: 1px solid var(--status-border-completed); }
+  .as-state--deleted   { color: var(--status-border-completed); }
+  .as-state--deleted::before   { border: 1px solid var(--status-border-completed); }
+
+  /* 操作欄 */
+  .as-ops { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .as-edit-btn { flex: 0 0 auto; padding: 6px 10px; font-size: var(--fs-sm); white-space: nowrap; }
+  .as-edit-btn fb-icon { width: 16px; height: 16px; }
+  .as-del-btn {
+    flex: 0 0 auto; white-space: nowrap;
+    padding: 6px 10px; font-size: var(--fs-sm);
+  }
+  .as-edit-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .as-empty { text-align: center; color: var(--text-faint); padding: 40px 12px; }
+
+  /* Modal 內容 */
+  .as-form { display: flex; flex-direction: column; gap: 20px; }
+  .as-banner {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    background: var(--tag-bg-error); color: var(--tag-text-error);
+    border: 1px solid var(--status-border-error);
+    font-size: 13px; line-height: var(--lh-sm);
+  }
+  .as-banner svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; }
+  .as-sect { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 16px; }
+  .as-sect__title { font-size: var(--fs-md); font-weight: var(--fw-medium); color: var(--color-ink); margin: 0 0 12px; }
+  .as-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .as-field { display: flex; flex-direction: column; gap: var(--gap-2xs); }
+  .as-field > label { font-family: var(--font-cn); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: var(--fw-medium); color: var(--form-label-text); }
+  .as-field > label .en { font-weight: var(--fw-regular); color: var(--form-label-note); }
+  .as-field > label em { color: var(--accent-danger); font-style: normal; }
+  .as-roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .as-check {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-md);
+    font-size: var(--fs-sm); color: var(--color-ink); cursor: pointer;
+  }
+  .as-check input { width: 16px; height: 16px; flex: 0 0 auto; }
+  .as-note {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 12px; line-height: 18px; color: var(--text-muted);
+  }
+  .as-note svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--color-orange-500); margin-top: 1px; }
+  .as-modal-btns { display: inline-flex; gap: var(--pad-sm); flex: 0 0 auto; }
+  .as-del-link { font-size: var(--fs-sm); padding: 6px 12px; }
+
+  @media (max-width: 900px) {
+    .as-stats { grid-template-columns: 1fr 1fr; }
+    .as-roles { grid-template-columns: 1fr 1fr; }
+    .as-grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <!-- ============ 1. 頂部導覽 ============ -->
+  <fb-topnav active="tools"></fb-topnav>
+
+  <main class="page">
+    <!-- ============ 2. 頁面標題 ============ -->
+    <fb-area-title zh="代理人設定" en="Agent Settings"></fb-area-title>
+
+<!-- ============ 4. 儀表板（固定展示值；）============ -->
+    <div class="as-stats">
+      <div class="as-dash as-dash--live">
+        <span class="as-dash__icon"><fb-icon name="fb-refresh-cw"></fb-icon></span>
+        <span class="as-dash__text">
+          <span class="as-dash__label">代理生效中 <span class="en">Active Agent</span></span>
+          <span class="as-dash__value" id="statLive">4</span>
+        </span>
+      </div>
+      <div class="as-dash as-dash--expire">
+        <span class="as-dash__icon"><fb-icon name="fb-time"></fb-icon></span>
+        <span class="as-dash__text">
+          <span class="as-dash__label">即將到期代理 <span class="en">Expiring Soon</span></span>
+          <span class="as-dash__value" id="statExpiring">1</span>
+        </span>
+      </div>
+      <div class="as-dash as-dash--upcoming">
+        <span class="as-dash__icon"><fb-icon name="fb-calendar-filled"></fb-icon></span>
+        <span class="as-dash__text">
+          <span class="as-dash__label">預約排程代理 <span class="en">Upcoming</span></span>
+          <span class="as-dash__value" id="statScheduled">2</span>
+        </span>
+      </div>
+      <div class="as-dash as-dash--history">
+        <span class="as-dash__icon"><fb-icon name="fb-file-document"></fb-icon></span>
+        <span class="as-dash__text">
+          <span class="as-dash__label">歷史代理稽核總數 <span class="en">History</span></span>
+          <span class="as-dash__value" id="statHistory">4</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- ============ 5. 篩選 ============ -->
+    <fb-filter-card>
+      <div class="filter__grid cols-3">
+        <div class="field">
+          <label>關鍵字 <span class="en">Keyword</span></label>
+          <div class="as-keyword">
+            <fb-icon name="fb-search"></fb-icon>
+            <input type="text" id="fKeyword" placeholder="搜尋代理人、被代理人或員編">
+          </div>
+        </div>
+        <div class="field">
+          <label>狀態 <span class="en">Status</span></label>
+          <fb-dropdown id="fStatus" type="single"><script type="application/json">{"options":["所有狀態 (All Status)","代理生效中","預約排程中","已過期到期"],"value":"所有狀態 (All Status)"}</script></fb-dropdown>
+        </div>
+        <div class="field">
+          <label>授權範圍 <span class="en">Scope</span></label>
+          <fb-dropdown id="fScope" type="single"><script type="application/json">{"options":["所有授權範圍 (All Scopes)","含客戶資料","僅功能代理"],"value":"所有授權範圍 (All Scopes)"}</script></fb-dropdown>
+        </div>
+      </div>
+      <div class="filter__actions">
+        <button class="btn-text muted" id="btnReset" type="button"><fb-icon name="fb-reset"></fb-icon> 重設 Reset</button>
+        <button class="btn-primary" id="btnSearch" type="button"><fb-icon name="fb-search"></fb-icon> 查詢 Search</button>
+      </div>
+    </fb-filter-card>
+
+    <!-- ============ 6. 動作列 ============ -->
+    <div class="as-actions">
+      <button class="btn-primary" id="btnAdd" type="button"><fb-icon name="fb-plus"></fb-icon> 新增代理設定 Add</button>
+      <button class="btn-outline" id="btnExport" type="button"><fb-icon name="fb-export"></fb-icon> 匯出 Export</button>
+    </div>
+
+    <!-- ============ 7. 代理人表 ============ -->
+    <div class="table-clip">
+      <div class="table-wrap">
+        <table class="as-table" id="agentTable"></table>
+      </div>
+    </div>
+
+    <!-- ============ 8. 分頁列 ============ -->
+    <fb-pagination id="agPager" sizes="10,20,50" page-size="10"></fb-pagination>
+  </main>
+
+  <!-- ============ 9. 代理人 Modal（新增／編輯共用）============ -->
+  <fb-modal id="agModal" heading="新增代理權限與排程設定" heading-en="Add Agent">
+    <form class="as-form" onsubmit="return false">
+      <div class="as-banner" id="agBanner" hidden>
+        <fb-icon name="fb-shield-alert"></fb-icon>
+        <span id="agBannerMsg"></span>
+      </div>
+
+      <div class="as-sect">
+        <p class="as-sect__title">代理人雙方對照 <span class="en">Delegator &amp; Agent</span></p>
+        <div class="as-grid2">
+          <div class="as-field">
+            <label>被代理人（委託人）<em>*</em></label>
+            <fb-dropdown id="agDelegator" type="single" search><script type="application/json">{"options":[]}</script></fb-dropdown>
+          </div>
+          <div class="as-field">
+            <label>指定代理人（受託人）<em>*</em></label>
+            <fb-dropdown id="agAgent" type="single" search><script type="application/json">{"options":[]}</script></fb-dropdown>
+          </div>
+        </div>
+      </div>
+
+      <div class="as-sect">
+        <p class="as-sect__title">授權代理之功能角色 <span class="en">Delegated Roles（可多選）</span></p>
+        <div class="as-roles" id="agRoles"></div>
+      </div>
+
+      <fb-toggle id="agCust" variant="card" zh="開放被代理人之「客戶資料檢視權限」" en="Client Data Access"
+        desc="開啟後，代理人可跨區檢視被代理人名下經辦之所有機構客戶資料與歷史紀錄"></fb-toggle>
+
+      <div class="as-sect">
+        <p class="as-sect__title">代理起訖時間 <span class="en">Delegation Period</span></p>
+        <div class="as-grid2">
+          <div class="as-field">
+            <label>起始日 <em>*</em></label>
+            <fb-date-field id="agStart"></fb-date-field>
+          </div>
+          <div class="as-field">
+            <label>結束日 <em>*</em></label>
+            <fb-date-field id="agEnd"></fb-date-field>
+          </div>
+        </div>
+      </div>
+
+      <p class="as-note">
+        <fb-icon name="fb-shield-alert"></fb-icon>
+        <span>為防範詐騙，代理權限僅供內部作業使用；請勿外流帳號或授權他人代為操作。</span>
+      </p>
+    </form>
+
+    <div data-modal-footer style="display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%">
+      <button class="btn-danger-line as-del-link" type="button" id="agDelete" hidden><fb-icon name="fb-trash"></fb-icon> 刪除 Delete</button>
+      <span class="as-modal-btns" style="margin-left:auto">
+        <button class="btn-neutral-outline" type="button" data-modal-cancel>取消 Cancel</button>
+        <button class="btn-primary" type="button" id="agSave">儲存 Save</button>
+      </span>
+    </div>
+  </fb-modal>
+
+  <fb-confirm-dialog id="agConfirm"></fb-confirm-dialog>
+  <fb-toast id="agToast"></fb-toast>
+
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- 常數 ---------- */
+  var ROLE_OPTIONS = ['系統管理員', '主管', '業務員', '交易員', '一般員工', '專案實習'];
+  var DELEGATOR_PH = '請選擇被代理人 (委託人)';
+  var AGENT_PH = '請選擇指定代理人 (受託人)';
+
+  /* ---------- 人員清單（寫死；員編-姓名／部門·職稱）---------- */
+  var PEOPLE = [
+    { emp: '912214', name: '陳美玲', dept: '境內業務一部', title: '資深業務員' },
+    { emp: '878088', name: '李雅婷', dept: '境內業務一部', title: '資深業務員' },
+    { emp: '308391', name: '張家豪', dept: '境內業務二部', title: '業務主管' },
+    { emp: '699614', name: '林志偉', dept: '境外業務一部', title: '業務員' },
+    { emp: '126540', name: '黃建宏', dept: '境外業務一部', title: '業務員' },
+    { emp: '536930', name: '王淑芬', dept: '境外業務二部', title: '業務主管' },
+    { emp: '204471', name: '吳承翰', dept: '境內業務二部', title: '業務員' },
+    { emp: '445902', name: '鄭凱文', dept: '境外業務二部', title: '資深業務員' },
+    { emp: '671338', name: '許雅雯', dept: '境內業務一部', title: '業務員' },
+    { emp: '883014', name: '蔡宗霖', dept: '境外業務一部', title: '業務主管' }
+  ];
+  var BY_EMP = {};
+  PEOPLE.forEach(function (p) { BY_EMP[p.emp] = p; });
+  function personLabel(p) { return p.emp + '-' + p.name; }
+
+  /* ---------- 代理記錄（寫死）---------- */
+  /* status: 'live' 代理生效中 | 'scheduled' 預約排程中 | 'expired' 已過期到期 */
+  function mk(dEmp, aEmp, roles, cust, start, end, status, eqDate, eqBy) {
+    return {
+      delegator: dEmp, agent: aEmp, roles: roles, custView: cust,
+      start: start, end: end, status: status, editedAt: eqDate, editedBy: eqBy
+    };
+  }
+  var AGENTS = [
+    mk('912214', '308391', ['主管'], true, '2026/08/24', '2026/09/25', 'live', '2026/02/10', '黃俊傑'),
+    mk('878088', '699614', ['主管'], true, '2026/08/24', '2026/09/25', 'live', '2026/02/10', '黃俊傑'),
+    mk('308391', '912214', ['業務員', '交易員'], true, '2026/08/24', '2026/09/25', 'live', '2026/02/10', '黃俊傑'),
+    mk('699614', '878088', ['主管', '業務員', '交易員', '一般員工'], false, '2026/08/24', '2026/09/25', 'live', '2026/02/10', '陳柏翰'),
+    mk('126540', '536930', ['業務員'], false, '2026/09/01', '2026/10/15', 'scheduled', '2026/02/08', '陳柏翰'),
+    mk('536930', '126540', ['主管', '交易員'], true, '2026/09/05', '2026/10/20', 'scheduled', '2026/02/08', '陳柏翰'),
+    mk('204471', '445902', ['一般員工'], false, '2026/06/01', '2026/07/31', 'expired', '2026/01/20', '黃俊傑'),
+    mk('445902', '204471', ['業務員', '交易員', '一般員工'], true, '2026/05/10', '2026/06/30', 'expired', '2026/01/18', '黃俊傑'),
+    mk('671338', '883014', ['主管'], false, '2026/08/24', '2026/09/25', 'live', '2026/02/11', '張雅婷'),
+    mk('883014', '671338', ['系統管理員', '主管', '業務員', '交易員', '一般員工'], true, '2026/08/24', '2026/09/25', 'live', '2026/02/11', '張雅婷'),
+    mk('912214', '699614', ['業務員'], false, '2026/09/10', '2026/10/25', 'scheduled', '2026/02/12', '李美玲'),
+    mk('878088', '308391', ['主管', '業務員'], true, '2026/08/01', '2026/08/20', 'expired', '2026/01/30', '李美玲'),
+    mk('308391', '445902', ['交易員'], false, '2026/08/24', '2026/09/25', 'live', '2026/02/13', '林宜蓁'),
+    mk('699614', '126540', ['主管', '交易員', '一般員工'], true, '2026/08/24', '2026/09/25', 'live', '2026/02/13', '林宜蓁'),
+    mk('126540', '204471', ['業務員'], false, '2026/09/15', '2026/11/01', 'scheduled', '2026/02/14', '陳柏翰'),
+    mk('536930', '883014', ['主管'], true, '2026/07/01', '2026/08/15', 'expired', '2026/01/22', '陳柏翰'),
+    mk('204471', '912214', ['一般員工', '業務員'], false, '2026/08/24', '2026/09/25', 'live', '2026/02/15', '黃俊傑'),
+    mk('445902', '536930', ['交易員', '一般員工'], true, '2026/08/24', '2026/09/25', 'live', '2026/02/15', '黃俊傑'),
+    mk('671338', '308391', ['業務員'], false, '2026/09/20', '2026/11/10', 'scheduled', '2026/02/16', '張雅婷'),
+    mk('883014', '699614', ['主管', '業務員', '交易員'], true, '2026/06/15', '2026/07/30', 'expired', '2026/01/25', '張雅婷'),
+    mk('912214', '536930', ['系統管理員'], false, '2026/08/24', '2026/09/25', 'live', '2026/02/17', '李美玲'),
+    mk('878088', '445902', ['主管', '一般員工'], true, '2026/08/24', '2026/09/25', 'live', '2026/02/17', '李美玲'),
+    mk('308391', '204471', ['業務員', '交易員'], false, '2026/09/25', '2026/11/15', 'scheduled', '2026/02/18', '林宜蓁'),
+    mk('699614', '883014', ['主管'], true, '2026/05/01', '2026/06/15', 'expired', '2026/01/15', '林宜蓁'),
+    mk('126540', '671338', ['一般員工'], false, '2026/08/24', '2026/09/25', 'live', '2026/02/19', '陳柏翰'),
+    mk('536930', '204471', ['主管', '業務員', '交易員', '一般員工'], true, '2026/08/24', '2026/09/25', 'live', '2026/02/19', '陳柏翰')
+  ];
+
+  var STATUS_ZH = { live: '代理生效中', scheduled: '預約排程中', expired: '已過期到期', deleted: '已刪除' };
+
+  /* ---------- DOM ---------- */
+  var table = document.getElementById('agentTable');
+  var pager = document.getElementById('agPager');
+  var modal = document.getElementById('agModal');
+  var confirm = document.getElementById('agConfirm');
+  var toast = document.getElementById('agToast');
+  var ddDelegator = document.getElementById('agDelegator');
+  var ddAgent = document.getElementById('agAgent');
+  var rolesWrap = document.getElementById('agRoles');
+  var custToggle = document.getElementById('agCust');
+  var dfStart = document.getElementById('agStart');
+  var dfEnd = document.getElementById('agEnd');
+  var banner = document.getElementById('agBanner');
+  var bannerMsg = document.getElementById('agBannerMsg');
+  var saveBtn = document.getElementById('agSave');
+  var deleteBtn = document.getElementById('agDelete');
+  var statLive = document.getElementById('statLive');
+  var statExpiring = document.getElementById('statExpiring');
+  var statScheduled = document.getElementById('statScheduled');
+  var statHistory = document.getElementById('statHistory');
+
+  /* ---------- 下拉選項：人員 ---------- */
+  (function initPeopleDropdowns() {
+    var dOpts = [DELEGATOR_PH].concat(PEOPLE.map(personLabel));
+    var aOpts = [AGENT_PH].concat(PEOPLE.map(personLabel));
+    ddDelegator.options = dOpts; ddDelegator.value = DELEGATOR_PH;
+    ddAgent.options = aOpts; ddAgent.value = AGENT_PH;
+    if (ddDelegator._syncLabel) ddDelegator._syncLabel();
+    if (ddAgent._syncLabel) ddAgent._syncLabel();
+  })();
+
+  /* ---------- 角色 checkbox ---------- */
+  rolesWrap.innerHTML = ROLE_OPTIONS.map(function (r) {
+    return '<label class="as-check"><input type="checkbox" value="' + r + '"> ' + r + '</label>';
+  }).join('');
+  function selectedRoles() {
+    return Array.prototype.map.call(rolesWrap.querySelectorAll('input:checked'), function (i) { return i.value; });
+  }
+  function setRoles(list) {
+    var set = {};
+    (list || []).forEach(function (r) { set[r] = true; });
+    Array.prototype.forEach.call(rolesWrap.querySelectorAll('input'), function (i) { i.checked = !!set[i.value]; });
+  }
+
+  /* ---------- 篩選（僅「查詢」時套用）---------- */
+  var applied = { keyword: '', status: '', scope: '' };
+
+  function passesFilter(rec) {
+    if (applied.keyword) {
+      var k = applied.keyword;
+      var d = BY_EMP[rec.delegator], a = BY_EMP[rec.agent];
+      var hay = [d.emp, d.name, a.emp, a.name].join(' ');
+      if (hay.indexOf(k) === -1) return false;
+    }
+    if (applied.status && STATUS_ZH[rec.status] !== applied.status) return false;
+    if (applied.scope === '含客戶資料' && !rec.custView) return false;
+    if (applied.scope === '僅功能代理' && rec.custView) return false;
+    return true;
+  }
+
+  /* ---------- 排序 ---------- */
+  var sort = null;   // { col: 'delegator'|'agent'|'period', dir: 'asc'|'desc' }
+  var sortVal = {
+    delegator: function (r) { return r.delegator; },
+    agent: function (r) { return r.agent; },
+    period: function (r) { return r.start; }
+  };
+  /* 預設排序（未點欄位排序時）：依代理狀態，已過期到期／已刪除放最後 */
+  var STATUS_RANK = { live: 0, scheduled: 1, expired: 2, deleted: 3 };
+  function sortedRows(rows) {
+    if (!sort) {
+      return rows.map(function (r, i) { return [r, i]; }).sort(function (a, b) {
+        var d = (STATUS_RANK[a[0].status] || 0) - (STATUS_RANK[b[0].status] || 0);
+        return d !== 0 ? d : a[1] - b[1];
+      }).map(function (x) { return x[0]; });
+    }
+    var f = sortVal[sort.col];
+    return rows.slice().sort(function (a, b) {
+      var va = f(a), vb = f(b);
+      var d = va < vb ? -1 : va > vb ? 1 : 0;
+      return sort.dir === 'asc' ? d : -d;
+    });
+  }
+
+  /* ---------- 表格 ---------- */
+  var HEADS = [
+    { key: 'delegator', zh: '被代理人(委託人)', en: 'Delegator', sortable: true },
+    { key: 'agent', zh: '指定代理人(受託人)', en: 'Agent', sortable: true },
+    { key: 'scope', zh: '代理角色與權限範圍', en: 'Scope', sortable: false },
+    { key: 'period', zh: '代理起訖時間', en: 'Date', sortable: true },
+    { key: 'state', zh: '代理狀態', en: 'Status', sortable: false },
+    { key: 'edited', zh: '最後編輯', en: 'Last Edit', sortable: false },
+    { key: 'ops', zh: '操作', en: 'Action', sortable: false }
+  ];
+
+  function twoLine(main, sub) {
+    return '<div class="as-two__main">' + main + '</div><div class="as-two__sub">' + sub + '</div>';
+  }
+  function personCell(emp) {
+    var p = BY_EMP[emp];
+    return twoLine(p.emp + '-' + p.name, p.dept + '／' + p.title);
+  }
+  function periodCell(rec) {
+    return '<div class="as-period"><div>' + rec.start + ' -</div><div>' + rec.end + '</div></div>';
+  }
+  function scopeCell(rec) {
+    var tags = rec.roles.map(function (r) { return '<span class="as-role-tag">' + r + '</span>'; });
+    tags.push(rec.custView
+      ? '<span class="as-tag as-tag--cust">含客戶資料</span>'
+      : '<span class="as-tag as-tag--func">僅功能代理</span>');
+    return '<span class="as-scope">' + tags.join('') + '</span>';
+  }
+
+  /* 溢位收合：預設一行；放不下的標籤（含特殊標籤）從尾端隱藏並計入數量，
+     數量標籤 +N 永遠置於最末端。隱藏標籤存入 .as-more 的 data-tags，hover/點擊以 body 層 tooltip 顯示 */
+  function collapseScopes() {
+    table.querySelectorAll('.as-scope').forEach(function (box) {
+      var old = box.querySelector('.as-more');
+      if (old) old.remove();
+      var tags = Array.prototype.slice.call(box.querySelectorAll('.as-role-tag, .as-tag'));
+      tags.forEach(function (t) { t.hidden = false; });
+      if (box.scrollWidth <= box.clientWidth) return;
+
+      var more = document.createElement('span');
+      more.className = 'as-more';
+      more.setAttribute('role', 'button');
+      more.setAttribute('tabindex', '0');
+      box.appendChild(more);   // 永遠最末端
+
+      var hidden = [];
+      for (var i = tags.length - 1; i >= 0 && box.scrollWidth > box.clientWidth; i--) {
+        tags[i].hidden = true;
+        hidden.unshift({ t: tags[i].textContent, c: tags[i].className });
+      }
+      if (!hidden.length) { more.remove(); return; }
+      more.textContent = '+' + hidden.length;
+      more.setAttribute('data-tags', JSON.stringify(hidden));
+    });
+  }
+
+  /* body 層 tooltip（避開 .table-clip 的 overflow:hidden）*/
+  var scopeTip = document.createElement('div');
+  scopeTip.className = 'as-tip';
+  scopeTip.hidden = true;
+  document.body.appendChild(scopeTip);
+  function showScopeTip(more) {
+    var list;
+    try { list = JSON.parse(more.getAttribute('data-tags') || '[]'); } catch (e) { list = []; }
+    if (!list.length) return;
+    scopeTip.innerHTML = list.map(function (x) {
+      return '<span class="' + x.c + '">' + x.t + '</span>';
+    }).join('');
+    scopeTip.hidden = false;
+    var r = more.getBoundingClientRect();
+    scopeTip.style.left = (window.scrollX + r.left) + 'px';
+    scopeTip.style.top = (window.scrollY + r.bottom + 6) + 'px';
+  }
+  function hideScopeTip() { scopeTip.hidden = true; }
+
+  var resizeT;
+  window.addEventListener('resize', function () {
+    hideScopeTip();
+    clearTimeout(resizeT);
+    resizeT = setTimeout(collapseScopes, 120);
+  });
+  table.addEventListener('mouseover', function (e) {
+    var more = e.target.closest('.as-more');
+    if (more) showScopeTip(more);
+  });
+  table.addEventListener('mouseout', function (e) {
+    if (e.target.closest('.as-more')) hideScopeTip();
+  });
+  table.addEventListener('click', function (e) {
+    var more = e.target.closest('.as-more');
+    if (more) { scopeTip.hidden ? showScopeTip(more) : hideScopeTip(); }
+    else hideScopeTip();
+  });
+  window.addEventListener('scroll', hideScopeTip, true);
+
+  function daysUntil(dateStr) {
+    var today = new Date();
+    var todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    return Math.round((parseD(dateStr) - todayMid) / 86400000);
+  }
+
+  function renderStats() {
+    statLive.textContent = AGENTS.filter(function (a) { return a.status === 'live'; }).length;
+    statExpiring.textContent = AGENTS.filter(function (a) {
+      return a.status === 'live' && daysUntil(a.end) <= 3;
+    }).length;
+    statScheduled.textContent = AGENTS.filter(function (a) { return a.status === 'scheduled'; }).length;
+    statHistory.textContent = AGENTS.length;
+  }
+
+  function renderTable() {
+    var all = sortedRows(AGENTS.filter(passesFilter));
+    pager.setTotal(all.length);
+    var size = pager.pageSize;
+    var page = pager.page;
+    var rows = all.slice((page - 1) * size, page * size);
+
+    var html = '<colgroup>' +
+      '<col class="c-delegator"><col class="c-agent"><col class="c-scope"><col class="c-period">' +
+      '<col class="c-state"><col class="c-edited"><col class="c-ops"></colgroup>';
+
+    html += '<thead><tr>' + HEADS.map(function (h) {
+      var s = h.sortable
+        ? ' <span class="sort-ic" data-col="' + h.key + '" role="button" title="排序">' +
+          FbIcon.sort(sort && sort.col === h.key ? sort.dir : null) + '</span>'
+        : '';
+      return '<th><span class="hcell"><span class="hcell__t">' + h.zh +
+        '<span class="hcell__en">' + h.en + '</span></span>' + s + '</span></th>';
+    }).join('') + '</tr></thead>';
+
+    if (!rows.length) {
+      html += '<tbody><tr><td colspan="7" class="as-empty">查無符合條件的代理設定</td></tr></tbody>';
+      table.innerHTML = html;
+      bindSort();
+      return;
+    }
+
+    html += '<tbody>' + rows.map(function (rec) {
+      var idx = AGENTS.indexOf(rec);
+      var disabled = rec.status === 'expired' || rec.status === 'deleted';
+      return '<tr>' +
+        '<td>' + personCell(rec.delegator) + '</td>' +
+        '<td>' + personCell(rec.agent) + '</td>' +
+        '<td>' + scopeCell(rec) + '</td>' +
+        '<td>' + periodCell(rec) + '</td>' +
+        '<td><span class="as-state as-state--' + rec.status + '">' + STATUS_ZH[rec.status] + '</span></td>' +
+        '<td>' + twoLine(rec.editedAt, rec.editedBy) + '</td>' +
+        '<td><span class="as-ops">' +
+          '<button class="btn-outline as-edit-btn" type="button" data-edit="' + idx + '"' + (disabled ? ' disabled' : '') + '>' +
+            '<fb-icon name="fb-edit"></fb-icon> 編輯 Edit</button>' +
+          '<button class="btn-danger-line as-del-btn" type="button" data-del="' + idx + '"' + (disabled ? ' disabled' : '') + '>' +
+            '<fb-icon name="fb-trash"></fb-icon> 刪除 Delete</button>' +
+        '</span></td>' +
+        '</tr>';
+    }).join('') + '</tbody>';
+
+    table.innerHTML = html;
+    collapseScopes();
+    bindSort();
+    table.querySelectorAll('[data-edit]').forEach(function (b) {
+      if (b.disabled) return;
+      b.addEventListener('click', function () { openEdit(+b.getAttribute('data-edit')); });
+    });
+    table.querySelectorAll('[data-del]').forEach(function (b) {
+      if (b.disabled) return;
+      b.addEventListener('click', function () { askDelete(+b.getAttribute('data-del')); });
+    });
+  }
+
+  function bindSort() {
+    table.querySelectorAll('.sort-ic[data-col]').forEach(function (elm) {
+      elm.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var k = elm.getAttribute('data-col');
+        if (!sort || sort.col !== k) sort = { col: k, dir: 'asc' };
+        else if (sort.dir === 'asc') sort.dir = 'desc';
+        else sort = null;
+        pager.setTotal(AGENTS.filter(passesFilter).length, 1);
+        renderTable();
+      });
+    });
+  }
+
+  pager.addEventListener('page-change', function () { renderTable(); });
+
+  /* ---------- 代理期間重疊偵測 ---------- */
+  function parseD(s) { var a = s.split('/').map(Number); return new Date(a[0], a[1] - 1, a[2]).getTime(); }
+  function overlaps(aS, aE, bS, bE) { return parseD(aS) <= parseD(bE) && parseD(bS) <= parseD(aE); }
+
+  function currentConflicts() {
+    var demp = pickedEmp(ddDelegator, DELEGATOR_PH);
+    if (!demp) return [];
+    var s = dfStart.value, e = dfEnd.value;
+    return AGENTS.filter(function (rec, i) {
+      if (i === editingIndex) return false;
+      if (rec.status === 'expired' || rec.status === 'deleted') return false;
+      if (rec.delegator !== demp) return false;
+      return overlaps(s, e, rec.start, rec.end);
+    });
+  }
+
+  function refreshValidity() {
+    var demp = pickedEmp(ddDelegator, DELEGATOR_PH);
+    var aemp = pickedEmp(ddAgent, AGENT_PH);
+    var hasDates = !!dfStart.value && !!dfEnd.value;
+    var badRange = hasDates && dfEnd.value < dfStart.value;
+    var conflicts = (demp && hasDates && !badRange) ? currentConflicts() : [];
+
+    if (badRange) {
+      bannerMsg.textContent = '代理結束日不得早於開始日，請調整代理期間';
+      banner.hidden = false;
+    } else if (conflicts.length) {
+      bannerMsg.textContent = '此期間會與其他 ' + conflicts.length + ' 筆代理權限重疊，請調整代理期間';
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
+    saveBtn.disabled = !(demp && aemp && hasDates && !badRange && conflicts.length === 0);
+  }
+
+  function pickedEmp(dd, placeholder) {
+    var v = dd.value;
+    if (!v || v === placeholder) return '';
+    return v.split('-')[0];
+  }
+
+  ddDelegator.addEventListener('change', refreshValidity);
+  ddAgent.addEventListener('change', refreshValidity);
+  dfStart.addEventListener('change', refreshValidity);
+  dfEnd.addEventListener('change', refreshValidity);
+  rolesWrap.addEventListener('change', refreshValidity);
+  /* 起訖聯動：UI 上無法選出結束日早於開始日 */
+  fbLinkRange(dfStart, dfEnd, { kind: 'date' });
+
+  /* ---------- Modal：新增 / 編輯 ---------- */
+  var editingIndex = null;
+
+  function todayStr() {
+    var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate());
+  }
+
+  function openAdd() {
+    editingIndex = null;
+    modal.setHeading('新增代理權限與排程設定', 'Add Agent');
+    deleteBtn.hidden = true;
+    ddDelegator.value = DELEGATOR_PH; if (ddDelegator._syncLabel) ddDelegator._syncLabel();
+    ddAgent.value = AGENT_PH; if (ddAgent._syncLabel) ddAgent._syncLabel();
+    setRoles([]);
+    custToggle.checked = false;
+    dfStart.value = todayStr();
+    dfEnd.value = todayStr();
+    banner.hidden = true;
+    refreshValidity();
+    modal.open();
+  }
+
+  function openEdit(i) {
+    editingIndex = i;
+    var rec = AGENTS[i];
+    modal.setHeading('編輯代理權限與排程設定', 'Edit Agent');
+    deleteBtn.hidden = false;
+    ddDelegator.value = personLabel(BY_EMP[rec.delegator]); if (ddDelegator._syncLabel) ddDelegator._syncLabel();
+    ddAgent.value = personLabel(BY_EMP[rec.agent]); if (ddAgent._syncLabel) ddAgent._syncLabel();
+    setRoles(rec.roles);
+    custToggle.checked = rec.custView;
+    dfStart.value = rec.start;
+    dfEnd.value = rec.end;
+    banner.hidden = true;
+    refreshValidity();
+    modal.open();
+  }
+
+  function save() {
+    var demp = pickedEmp(ddDelegator, DELEGATOR_PH);
+    var aemp = pickedEmp(ddAgent, AGENT_PH);
+    if (!demp || !aemp || !dfStart.value || !dfEnd.value) return;
+    if (currentConflicts().length) return;
+
+    var payload = {
+      delegator: demp, agent: aemp, roles: selectedRoles(), custView: custToggle.checked,
+      start: dfStart.value, end: dfEnd.value, editedAt: todayStr(), editedBy: '我'
+    };
+
+    if (editingIndex === null) {
+      payload.status = 'scheduled';
+      AGENTS.unshift(payload);
+      finish('代理人已新增');
+    } else {
+      var rec = AGENTS[editingIndex];
+      rec.delegator = payload.delegator;
+      rec.agent = payload.agent;
+      rec.roles = payload.roles;
+      rec.custView = payload.custView;
+      rec.start = payload.start;
+      rec.end = payload.end;
+      rec.editedAt = payload.editedAt;
+      rec.editedBy = payload.editedBy;
+      finish('代理人已更新');
+    }
+  }
+
+  function finish(msg) {
+    modal.close();
+    renderTable();
+    renderStats();
+    toast.show(msg);
+  }
+
+  /* ---------- 刪除 ---------- */
+  var pendingDelete = null;
+
+  function askDelete(i) {
+    pendingDelete = i;
+    confirm.open({
+      heading: '刪除代理人', headingEn: 'Delete Agent',
+      title: '請確認是否要刪除代理人',
+      desc: '已刪除的代理人將不會生效，也不可再次編輯',
+      confirmLabel: '刪除', confirmLabelEn: 'Delete', tone: 'danger'
+    });
+  }
+
+  confirm.addEventListener('confirm', function () {
+    if (pendingDelete == null) return;
+    AGENTS.splice(pendingDelete, 1);
+    pendingDelete = null;
+    if (modal.isOpen) modal.close();
+    renderTable();
+    renderStats();
+    toast.show('代理人已刪除');
+  });
+  confirm.addEventListener('cancel', function () { pendingDelete = null; });
+
+  deleteBtn.addEventListener('click', function () {
+    if (editingIndex != null) askDelete(editingIndex);
+  });
+
+  /* ---------- 事件綁定 ---------- */
+  saveBtn.addEventListener('click', save);
+  document.getElementById('btnAdd').addEventListener('click', openAdd);
+
+  document.getElementById('btnExport').addEventListener('click', function () {
+    toast.show('（原型）匯出功能為示意');
+  });
+
+  document.getElementById('btnSearch').addEventListener('click', function () {
+    applied.keyword = document.getElementById('fKeyword').value.trim();
+    var sv = document.getElementById('fStatus').value;
+    var pv = document.getElementById('fScope').value;
+    applied.status = /所有狀態/.test(sv) ? '' : sv;
+    applied.scope = /所有授權範圍/.test(pv) ? '' : pv;
+    pager.setTotal(AGENTS.filter(passesFilter).length, 1);
+    renderTable();
+  });
+  document.getElementById('btnReset').addEventListener('click', function () {
+    document.getElementById('fKeyword').value = '';
+    document.querySelectorAll('fb-dropdown').forEach(function (d) { d.reset && d.reset(); });
+    applied = { keyword: '', status: '', scope: '' };
+    sort = null;
+    pager.setTotal(AGENTS.length, 1);
+    renderTable();
+  });
+
+/* ---------- 初始 ---------- */
+  renderTable();
+  renderStats();
+})();
+</script>
+</body>
+</html>

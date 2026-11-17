@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>首頁 個人行事曆</title>
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/components.css">
+</head>
+<body>
+  <!-- ============ 頂部導覽 ============ -->
+  <fb-topnav active="home"></fb-topnav>
+
+  <main class="page">
+    <div class="cal-layout">
+
+      <!-- ============ 左：個人行事曆面板 ============ -->
+      <section class="cal-panel">
+        <fb-area-title icon="fb-calendar" zh="個人行事曆" en="Personal Calendar"></fb-area-title>
+
+        <div class="cal-outlook">
+          <span class="cal-outlook__label">Outlook 串接 <fb-icon name="fb-info-filled" data-tip="🔄 同步規則說明：&#10;CRM ➡️ Outlook：CRM 新增之行程會自動同步至 Outlook。&#10;Outlook ➡️ CRM：僅同步「由 CRM 發起」之會議的後續異動。&#10;重要建議：新增、修改或刪除行程，請統一在 CRM 進行，以維護資料一致"></fb-icon></span>
+          <fb-status-pill id="outlookPill" state="off" icon="fb-outlook" interactive label-off="未啟用" label-on="已啟用">未啟用</fb-status-pill>
+        </div>
+
+        <fb-dropdown type="single" id="acct">
+          <script type="application/json">{"options":["006698-鍾沂會(本人)","006698-林佳蓉(代理)","012345-投資部共用"],"value":"006698-鍾沂會(本人)"}</script>
+        </fb-dropdown>
+
+        <fb-mini-calendar id="cal" value="2026/08/24" month="2026/08"></fb-mini-calendar>
+      </section>
+
+      <!-- ============ 右：清單 ============ -->
+      <section class="cal-main">
+        <fb-card-tabs id="calTabs" active="1">
+          <script type="application/json">[{"zh":"客戶列表","en":"Customer List"},{"zh":"行事曆","en":"Calendar"},{"zh":"服務通知","en":"Service Notice"}]</script>
+        </fb-card-tabs>
+
+        <!-- ============ 面板：行事曆（既有，程式碼不動）============ -->
+        <div id="panel-calendar" class="cal-main__body">
+          <h2 class="cal-date"><span id="calDateYmd">2026/08/24</span> <span class="cal-date__wk" id="calDateWk">Thu</span></h2>
+
+          <div class="cal-filters">
+            <fb-segmented id="calSeg" value="personal">
+              <script type="application/json">[{"value":"personal","label":"個人 Personal"},{"value":"service","label":"服務 Service"},{"value":"event","label":"活動 Event"}]</script>
+            </fb-segmented>
+            <button class="btn-primary" id="btnNewSched" type="button">
+              <fb-icon name="fb-plus"></fb-icon>新增行程 Add
+            </button>
+          </div>
+
+          <table class="cal-events" id="calTable"></table>
+        </div>
+
+        <!-- ============ 面板：服務通知============ -->
+        <div id="panel-notice" class="cal-main__body" hidden>
+          <h2 class="cal-notice__head">
+            服務通知/異動紀錄
+            <span class="cal-notice__summary" id="noticeSummary"></span>
+          </h2>
+          <table class="cal-events" id="noticeTable"></table>
+        </div>
+
+        <!-- ============ 面板：客戶列表============ -->
+        <div id="panel-customer" class="cl-panel" hidden>
+          <fb-filter-card id="clFilter">
+            <div class="filter__grid cols-3">
+              <div class="field"><label>單位 <span class="en">Unit</span></label>
+                <fb-dropdown type="multi" search data-k="unit"><script type="application/json">{"options":["境內","境外"]}</script></fb-dropdown></div>
+              <div class="field"><label>客戶群/代號 <span class="en">Client/Code</span></label>
+                <fb-dropdown type="multi" search data-k="corp"><script type="application/json">{"options":["北辰科技","安泰製造","恆信製造","星河金融","遠見金融","盛達金融","迅捷物流","晨光零售","藍海企業","遠洋企業"]}</script></fb-dropdown></div>
+              <div class="field"><label>產業類別 <span class="en">Coverage Segment</span></label>
+                <fb-dropdown type="multi" search data-k="segment"><script type="application/json">{"options":["科技業","製造業","外資"]}</script></fb-dropdown></div>
+            </div>
+            <div class="filter__grid cols-3">
+              <div class="field"><label>境外分類 <span class="en">Foreign Coverage</span></label>
+                <fb-dropdown type="multi" search data-k="foreign"><script type="application/json">{"options":["一般方案","Growth Fund","Co-Cover","Global Equity"]}</script></fb-dropdown></div>
+              <div class="field"><label>商品 <span class="en">Product</span></label>
+                <fb-dropdown type="multi" search data-k="product"><script type="application/json">{"options":["台股","海外股票"]}</script></fb-dropdown></div>
+              <div class="field"><label>集團戶 <span class="en">Groups</span></label>
+                <fb-dropdown type="multi" search data-k="affiliate"><script type="application/json">{"options":["關係","一般"]}</script></fb-dropdown></div>
+            </div>
+            <div class="filter__actions">
+              <button class="btn-text muted" id="clReset" type="button"><fb-icon name="fb-reset"></fb-icon>重置 Reset</button>
+              <button class="btn-primary" id="clSearch" type="button"><fb-icon name="fb-search"></fb-icon>查詢 Search</button>
+            </div>
+          </fb-filter-card>
+
+          <div class="cl-meta">
+            <div class="cl-meta__info">
+              <span>資料日期 <span class="en">Data Date</span>：<span id="clDataDate">2026/08/31</span></span>
+              <span>查詢時間 <span class="en">Query Time</span>：<span id="clQueryTime">--:--:--</span></span>
+            </div>
+            <button class="btn-outline" id="clRefresh" type="button"><fb-icon name="fb-refresh-cw"></fb-icon>更新數據 Update</button>
+          </div>
+
+          <div class="cl-table-wrap">
+            <table class="cl-table" id="clTable"></table>
+          </div>
+
+          <fb-pagination id="clPager">
+            <script type="application/json">{"total":0,"page":1,"pageSize":20,"sizes":[20,50,100]}</script>
+          </fb-pagination>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <fb-schedule-dialog id="schedDlg" mode="timed"></fb-schedule-dialog>
+  <fb-confirm-dialog id="confirmDlg"></fb-confirm-dialog>
+  <fb-toast id="toast"></fb-toast>
+
+  <script src="assets/js/icons.js"></script>
+  <script src="assets/js/components.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    /* ---------- 頁面專屬 mock 資料 ---------- */
+    var SEED = [
+      { id: 1, kind: 'event',    title: '聯發科總公司高層來訪簡報與交流 (訪客)', start: '2026/08/24 09:00', end: '2026/08/24 22:00', note: 'VIP 簡報室 A (同日有研究員會議)，包含外部講師與內部策略團隊，看當天狀況…' },
+      { id: 2, kind: 'service',  title: '【研究員會議】聯發科 Dimensity 旗艦晶片策略評估', start: '2026/08/24 04:00', end: '2026/08/24 07:00', note: '客戶投資簡報與手機庫存回溫分析 ＋ 新增至服務紀錄' },
+      { id: 3, kind: 'personal', title: '新產品發表會籌備會議', start: '2026/08/24 03:00', end: '2026/08/24 05:00', note: '會議室 B，討論發表會流程與媒體邀請名單' },
+      { id: 4, kind: 'event',    title: '市場趨勢分析與未來策略工作坊', start: '2026/08/24 00:00', end: '2026/08/24 13:00', note: '多功能廳，包含外部講師與內部策略團隊' },
+      { id: 5, kind: 'service',  title: '跨部門協作月度檢討會議', start: '2026/08/24 04:00', end: '2026/08/24 14:00', note: '會議室 C，專案進度與資源配置調整' },
+      { id: 6, kind: 'personal', title: '客戶滿意度調查結果分享', start: '2026/08/24 06:00', end: '2026/08/24 09:00', note: 'VIP 簡報室 B，討論改善方案和後續跟進' },
+      { id: 7, kind: 'personal', title: '晨會：本週交易重點', start: '2026/08/07 08:30', end: '2026/08/07 09:00', note: '' },
+      { id: 8, kind: 'service',  title: '客戶回訪 — 北辰科技', start: '2026/08/07 14:00', end: '2026/08/07 15:00', note: '' },
+      { id: 9, kind: 'event',    title: '產業論壇', start: '2026/08/07 16:00', end: '2026/08/07 18:00', note: '' },
+      { id: 10, kind: 'service', title: '月報彙整', start: '2026/08/28 10:00', end: '2026/08/28 12:00', note: '' },
+      { id: 11, kind: 'personal', title: '週會', start: '2026/08/03 09:00', end: '2026/08/03 10:00', note: '' },
+      { id: 12, kind: 'service', title: '客戶電訪', start: '2026/08/04 11:00', end: '2026/08/04 12:00', note: '' },
+      { id: 13, kind: 'event', title: '法說會', start: '2026/08/05 14:00', end: '2026/08/05 16:00', note: '' },
+      { id: 14, kind: 'personal', title: '教育訓練', start: '2026/08/10 13:00', end: '2026/08/10 17:00', note: '' },
+      { id: 15, kind: 'service', title: '季度檢視', start: '2026/08/11 10:00', end: '2026/08/11 11:30', note: '' },
+      { id: 16, kind: 'event', title: '客戶餐敘', start: '2026/08/14 18:00', end: '2026/08/14 20:00', note: '' },
+      { id: 17, kind: 'personal', title: '策略會議', start: '2026/08/17 09:00', end: '2026/08/17 11:00', note: '' },
+      { id: 18, kind: 'service', title: '對帳作業', start: '2026/08/18 15:00', end: '2026/08/18 16:00', note: '' },
+      { id: 19, kind: 'event', title: '研討會', start: '2026/08/20 09:00', end: '2026/08/20 12:00', note: '' },
+      { id: 20, kind: 'personal', title: '一對一', start: '2026/08/21 16:00', end: '2026/08/21 16:30', note: '' },
+      { id: 21, kind: 'service', title: '客訴處理', start: '2026/08/25 10:00', end: '2026/08/25 11:00', note: '' },
+      { id: 22, kind: 'event', title: '產品發表', start: '2026/08/29 14:00', end: '2026/08/29 16:00', note: '' },
+
+      // 2026/08/24 — 個人 Personal（含長字，示意兩行截斷 + tooltip）
+      { id: 23, kind: 'personal', title: '個人行程：與研究部門就下半年台股權值股配置方向進行一對一深度討論並整理會議重點', start: '2026/08/24 07:30', end: '2026/08/24 08:30', note: '地點：研究部小會議室；需事先閱讀晨會簡報與上週外資買賣超統計，並準備個人持股檢視清單與問題列表' },
+      { id: 24, kind: 'personal', title: '週報撰寫與下週行程規劃', start: '2026/08/24 12:00', end: '2026/08/24 13:00', note: '彙整本週客戶拜訪、成交與待辦，於系統建立下週 Outlook 行程草稿' },
+      { id: 25, kind: 'personal', title: '證照進修線上課程', start: '2026/08/24 19:00', end: '2026/08/24 21:00', note: '' },
+      // 2026/08/24 — 服務 Service
+      { id: 26, kind: 'service', title: '服務紀錄補登：本月大型法人客戶投資組合調整建議與後續追蹤事項彙整，並同步更新 CRM 服務歷程與下次聯繫提醒', start: '2026/08/24 09:30', end: '2026/08/24 10:30', note: 'VIP 簡報室 A；需附上最新研究報告連結、風險揭露文件與客戶簽署回條，完成後寄送會議摘要給客戶窗口與主管副本', changeType: 'time' },
+      { id: 27, kind: 'service', title: '客戶定期回訪電話', start: '2026/08/24 15:00', end: '2026/08/24 15:30', note: '確認對帳單收訖、詢問服務滿意度', changeType: 'lecturer' },
+      { id: 28, kind: 'service', title: '交割款項異常協處', start: '2026/08/24 16:00', end: '2026/08/24 17:00', note: '' },
+      // 2026/08/24 — 活動 Event
+      { id: 29, kind: 'event', title: '活動：示範企業 2026 下半年機構投資人策略論壇暨產業趨勢分享會（含外部講師專題與圓桌座談）', start: '2026/08/24 13:30', end: '2026/08/24 17:30', note: '國際會議廳；協助貴賓報到、名牌與座位安排，並於論壇結束後回收問卷、統計出席與滿意度，三日內完成活動成效報告' },
+      { id: 30, kind: 'event', title: '媒體餐敘', start: '2026/08/24 18:30', end: '2026/08/24 20:30', note: '與財經媒體記者交流，說明下半年展業重點' },
+      { id: 31, kind: 'event', title: '內部教育訓練：新制法規宣導', start: '2026/08/24 11:00', end: '2026/08/24 12:00', note: '' }
+    ];
+
+    var WKS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    /* ---------- 暫存假資料：sessionStorage（純前端 mock，關閉分頁即清除）---------- */
+    var STORE_KEY = 'fb-cal-overrides';
+    function loadEvents() {
+      try {
+        var raw = window.sessionStorage.getItem(STORE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+    function persist() {
+      /* 追蹤 F/U（e.fu）為原型階段的純前端 local state，重新整理即應重置，不隨其他行程異動一併寫入 sessionStorage */
+      try {
+        var toSave = EVENTS.map(function (e) {
+          var copy = {};
+          for (var k in e) if (k !== 'fu') copy[k] = e[k];
+          return copy;
+        });
+        window.sessionStorage.setItem(STORE_KEY, JSON.stringify(toSave));
+      } catch (e) { /* 隱私模式等：僅記憶體暫存 */ }
+    }
+
+    var EVENTS = loadEvents() || SEED.slice();
+    var seq = 100;
+    EVENTS.forEach(function (e) { if (typeof e.id === 'number' && e.id > seq) seq = e.id; });
+
+    var cal = document.getElementById('cal');
+    var table = document.getElementById('calTable');
+    var dlg = document.getElementById('schedDlg');
+    var confirmDlg = document.getElementById('confirmDlg');
+    var toast = document.getElementById('toast');
+    var acct = document.getElementById('acct');
+    var btnNew = document.getElementById('btnNewSched');
+    var dateYmd = document.getElementById('calDateYmd');
+    var dateWk = document.getElementById('calDateWk');
+    var outlookPill = document.getElementById('outlookPill');
+    var calTabs = document.getElementById('calTabs');
+    var noticeTable = document.getElementById('noticeTable');
+    var noticeSummary = document.getElementById('noticeSummary');
+
+    var selected = cal.getAttribute('value');
+    var selectedKind = document.getElementById('calSeg').getAttribute('value') || 'personal';
+    var pendingDelId = null;
+    var pendingAction = null;
+
+    /* 非本人（代理／共用）視角：不可新增／編輯／刪除 */
+    function isSelf() { return /\(本人\)/.test(acct.value || ''); }
+
+    function dayOf(e) { return e.start.slice(0, 10); }
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function calendarPayload() {
+      var map = {};
+      EVENTS.forEach(function (e) {
+        var d = dayOf(e);
+        if (!map[d]) map[d] = [];
+        if (map[d].indexOf(e.kind) < 0) map[d].push(e.kind);
+      });
+      return Object.keys(map).map(function (d) { return { date: d, kinds: map[d] }; });
+    }
+
+    function refreshCalendar() { cal.setEvents(calendarPayload()); }
+
+    /* 服務／活動分頁的補充欄位（mock：未指定時依 id 推衍） */
+    var SVC_TYPES = ['一對一訪談', '電話訪問', '線上會議', '實體拜訪', '季度檢視'];
+    var EVT_TYPES = ['IR實體會議', '法說會', '專家會議', '投資分析師會議', '高層管理會議', '內部研討會'];
+    var SPEAKERS = ['黃俊傑', '陳柏翰', '張雅婷', '李美玲', '林宜蓁', '王志明', '林子豪', '吳怡君'];
+    function typeOf(e) { return e.type || (e.kind === 'event' ? EVT_TYPES[e.id % EVT_TYPES.length] : SVC_TYPES[e.id % SVC_TYPES.length]); }
+    /* 類型 → Figma tag/basic 語意色（info / success / warning / promotion / await / error）*/
+    var TAG_TONE = {
+      '一對一訪談': 'info', '電話訪問': 'await', '線上會議': 'promotion', '實體拜訪': 'success', '季度檢視': 'warning',
+      'IR實體會議': 'info', '法說會': 'promotion', '專家會議': 'success', '投資分析師會議': 'error', '高層管理會議': 'await', '內部研討會': 'warning'
+    };
+    function tagTone(t) { return TAG_TONE[t] || 'info'; }
+    function speakerOf(e) { return e.speaker || SPEAKERS[e.id % SPEAKERS.length]; }
+    function countOf(e) { return (e.count || (6 + (e.id * 7) % 90)) + ' 人'; }
+    var FIRMS = ['通達物流', '悅家零售', '優購零售', '迅捷物流', '極光專案', '晨光零售', '瀚海專案'];
+    function firmOf(e) { return e.firm || FIRMS[e.id % FIRMS.length]; }
+    var CHANGE_TYPE_LABEL = { time: '時間異動', lecturer: '講師異動' };
+    function changeTypeLabel(e) { return CHANGE_TYPE_LABEL[e.changeType] || ''; }
+
+    /* 服務通知分頁與行事曆「服務 Service」分頁共用同一份查詢：當日 kind==='service' 的事件 */
+    function serviceEventsOf(day) {
+      return EVENTS.filter(function (e) { return dayOf(e) === day && e.kind === 'service'; });
+    }
+    /* 服務通知：當日有異動標記（changeType）的服務事件 */
+    function noticeEventsOf(day) {
+      return serviceEventsOf(day).filter(function (e) { return !!e.changeType; });
+    }
+    function cellClamp(text, extra) {
+      var t = text || '';
+      return t
+        ? '<span class="' + (extra || 'cal-events__note') + '" data-tip="' + esc(t) + '">' + esc(t) + '</span>'
+        : '—';
+    }
+
+    function renderTable() {
+      var self = isSelf();
+      var kind = selectedKind;
+      var isBasic = kind === 'personal';
+
+      /* 上方新增鈕：本人 + 非「活動」才顯示；服務分頁改標籤 */
+      btnNew.hidden = !self || kind === 'event';
+      if (!btnNew.hidden) {
+        btnNew.innerHTML = '<fb-icon name="fb-plus"></fb-icon>' +
+          (kind === 'service' ? '新增服務紀錄 Add' : '新增行程 Add');
+      }
+
+      var rows = kind === 'service'
+        ? serviceEventsOf(selected)
+        : EVENTS.filter(function (e) { return dayOf(e) === selected && e.kind === kind; });
+
+      var cols, head, colCount;
+      if (isBasic) {
+        cols = self
+          ? '<col style="width:28%"><col style="width:300px"><col><col style="width:180px">'
+          : '<col style="width:32%"><col style="width:300px"><col>';
+        head = '<tr><th>標題 <span class="en">Title</span></th>' +
+          '<th>時間 <span class="en">Time</span></th>' +
+          '<th>備註 <span class="en">Note</span></th>' +
+          (self ? '<th>操作 <span class="en">Action</span></th>' : '') + '</tr>';
+        colCount = self ? 4 : 3;
+      } else {
+        cols = '<col style="width:44px"><col style="width:20%"><col style="width:148px"><col style="width:100px">' +
+          '<col style="width:100px"><col style="width:60px"><col>' + (self ? '<col style="width:134px">' : '');
+        head = '<tr><th>追蹤 <span class="en">F/U</span></th>' +
+          '<th>名稱 (主題) <span class="en">Name (Topic)</span></th>' +
+          '<th>時間 <span class="en">Time</span></th>' +
+          '<th>類型 <span class="en">Type</span></th>' +
+          '<th>講師/研究員 <span class="en">Lecturer</span></th>' +
+          '<th>人數 <span class="en">Count</span></th>' +
+          '<th>連結說明 <span class="en">Details</span></th>' +
+          (self ? '<th>操作 <span class="en">Action</span></th>' : '') + '</tr>';
+        colCount = self ? 8 : 7;
+      }
+
+      var bodyHtml;
+      if (!rows.length) {
+        var addBtn = (self && kind === 'personal')
+          ? '<button type="button" class="btn-outline" data-empty-add>' +
+              '<fb-icon name="fb-plus"></fb-icon>新增行程 Add</button>'
+          : '';
+        bodyHtml = '<tr><td colspan="' + colCount + '"><div class="cal-empty">' +
+          '<span class="cal-empty__ic"><fb-icon name="fb-search"></fb-icon></span>' +
+          '<p class="cal-empty__zh">本日尚無行程</p>' +
+          '<p class="cal-empty__en">No Schedule Yet</p>' + addBtn +
+          '</div></td></tr>';
+      } else if (isBasic) {
+        bodyHtml = rows.map(function (e) {
+          return '<tr>' +
+            '<td><span class="cal-events__title"' + (self ? ' data-edit="' + e.id + '"' : '') +
+              ' data-tip="' + esc(e.title) + '">' + esc(e.title) + '</span></td>' +
+            '<td class="cal-events__time">' + esc(e.start + ' - ' + e.end) + '</td>' +
+            '<td>' + cellClamp(e.note) + '</td>' +
+            (self
+              ? '<td class="cal-events__act">' +
+                  '<button type="button" class="edit" data-edit="' + e.id + '">編輯 Edit</button>' +
+                  '<button type="button" class="del" data-del="' + e.id + '">刪除 Delete</button></td>'
+              : '') +
+            '</tr>';
+        }).join('');
+      } else {
+        var actLabel = kind === 'service' ? '新增至服務紀錄' : '轉至活動頁面';
+        var actAttr = kind === 'service' ? 'data-svc' : 'data-evt';
+        bodyHtml = rows.map(function (e) {
+          var ty = typeOf(e);
+          return '<tr>' +
+            '<td><fb-icon-toggle data-fu="' + e.id + '" off-icon="fb-star-outline" on-icon="fb-star-filled"' +
+              (e.fu === false ? '' : ' on') + '></fb-icon-toggle></td>' +
+            '<td>' + cellClamp(e.title, 'cal-events__title') + '</td>' +
+            '<td class="cal-events__time-wrap">' + esc(e.start + ' - ' + e.end) + '</td>' +
+            '<td><span class="cal-tag cal-tag--' + tagTone(ty) + '">' + esc(ty) + '</span></td>' +
+            '<td>' + esc(speakerOf(e)) + '</td>' +
+            '<td>' + esc(countOf(e)) + '</td>' +
+            '<td>' + cellClamp(e.note) + '</td>' +
+            (self
+              ? '<td class="cal-events__act"><button type="button" class="link-act" ' + actAttr +
+                  '="' + e.id + '">' + actLabel + '</button></td>'
+              : '') +
+            '</tr>';
+        }).join('');
+      }
+      table.innerHTML = '<colgroup>' + cols + '</colgroup><thead>' + head +
+        '</thead><tbody>' + bodyHtml + '</tbody>';
+    }
+
+    /* 服務通知：分頁籤徽章與面板摘要數字共用同一個計算來源 */
+    function computeNoticeCount() { return noticeEventsOf(selected).length; }
+
+    function updateNoticeBadge() {
+      var n = computeNoticeCount();
+      calTabs.setBadge(2, n);
+      noticeSummary.textContent = n > 0 ? ('共有 ' + n + ' 筆服務行程時間/內容異動') : '';
+    }
+
+    function renderNoticeTable() {
+      var rows = noticeEventsOf(selected);
+      var cols = '<col style="width:44px"><col style="width:20%"><col style="width:120px"><col style="width:148px">' +
+        '<col style="width:100px"><col style="width:100px"><col style="width:60px"><col>';
+      var head = '<tr><th>追蹤 <span class="en">F/U</span></th>' +
+        '<th>名稱 (主題) <span class="en">Title</span></th>' +
+        '<th>企業戶 <span class="en">Firm</span></th>' +
+        '<th>時間 <span class="en">Date</span></th>' +
+        '<th>類型 <span class="en">Type</span></th>' +
+        '<th>講師/研究員 <span class="en">Lecturer</span></th>' +
+        '<th>人數 <span class="en">Num</span></th>' +
+        '<th>備註 <span class="en">Description</span></th></tr>';
+
+      var bodyHtml;
+      if (!rows.length) {
+        bodyHtml = '<tr><td colspan="8"><div class="cal-empty">' +
+          '<span class="cal-empty__ic"><fb-icon name="fb-search"></fb-icon></span>' +
+          '<p class="cal-empty__zh">本日尚無服務通知</p>' +
+          '<p class="cal-empty__en">No Service Notice</p></div></td></tr>';
+      } else {
+        bodyHtml = rows.map(function (e) {
+          return '<tr>' +
+            '<td><fb-icon-toggle data-fu="' + e.id + '" off-icon="fb-star-outline" on-icon="fb-star-filled"' +
+              (e.fu === false ? '' : ' on') + '></fb-icon-toggle></td>' +
+            '<td>' + cellClamp(e.title, 'cal-events__title') + '</td>' +
+            '<td>' + esc(firmOf(e)) + '</td>' +
+            '<td class="cal-events__time-wrap">' + esc(e.start + ' - ' + e.end) + '</td>' +
+            '<td><span class="chip chip--changed"><span class="chip__label">' + esc(changeTypeLabel(e)) + '</span></span></td>' +
+            '<td>' + esc(speakerOf(e)) + '</td>' +
+            '<td>' + esc(countOf(e)) + '</td>' +
+            '<td>' + cellClamp(e.note) + '</td>' +
+            '</tr>';
+        }).join('');
+      }
+      noticeTable.innerHTML = '<colgroup>' + cols + '</colgroup><thead>' + head +
+        '</thead><tbody>' + bodyHtml + '</tbody>';
+    }
+
+    var KIND_ORDER = ['personal', 'service', 'event'];
+    function hasRows(day, kind) {
+      return EVENTS.some(function (e) { return dayOf(e) === day && e.kind === kind; });
+    }
+
+    function setSelected(ymd) {
+      selected = ymd;
+      dateYmd.textContent = ymd;
+      var d = ymd.split('/').map(Number);
+      dateWk.textContent = WKS[new Date(d[0], d[1] - 1, d[2]).getDay()];
+
+      /* 切到新日期時：若目前分類無行程，依 個人→服務→活動 自動跳到第一個有行程的分類；
+         三者皆空則維持原分類並顯示空狀態 */
+      if (!hasRows(selected, selectedKind)) {
+        for (var i = 0; i < KIND_ORDER.length; i++) {
+          if (hasRows(selected, KIND_ORDER[i])) { selectedKind = KIND_ORDER[i]; break; }
+        }
+        var seg = document.getElementById('calSeg');
+        if (seg.value !== selectedKind) seg.value = selectedKind;
+      }
+      renderTable();
+      renderNoticeTable();
+      updateNoticeBadge();
+    }
+
+    function findEvent(id) {
+      for (var i = 0; i < EVENTS.length; i++) if (EVENTS[i].id === id) return EVENTS[i];
+      return null;
+    }
+
+    /* ---------- 事件綁定 ---------- */
+    cal.addEventListener('date-change', function (e) { setSelected(e.detail.value); });
+
+    document.getElementById('calSeg').addEventListener('change', function (e) {
+      selectedKind = e.detail.value;
+      renderTable();
+    });
+
+    acct.addEventListener('change', function () { renderTable(); renderNoticeTable(); updateNoticeBadge(); });
+
+    calTabs.addEventListener('tab-change', function (e) {
+      if (e.detail.index === 2) { renderNoticeTable(); updateNoticeBadge(); }
+    });
+
+    function openAdd() {
+      dlg.setAttribute('mode', 'timed');
+      dlg.open({ allDay: false, startDate: selected, endDate: selected, start: '09:00', end: '10:00' });
+    }
+
+    /* 追蹤 F/U：純前端 local state，記在記憶體中的 EVENTS 列上，不持久化、不呼叫 API；
+       切換後顯示 toast 回饋，服務通知／服務／活動三個分頁共用同一套規則 */
+    function toastTrack(isOn) {
+      toast.show(isOn ? '已追蹤' : '已取消追蹤', { desc: 'Success' });
+    }
+
+    table.addEventListener('change', function (e) {
+      var fu = e.target.closest('[data-fu]');
+      if (!fu) return;
+      var ev = findEvent(Number(fu.getAttribute('data-fu')));
+      if (!ev) return;
+      ev.fu = !!e.detail.on;
+      toastTrack(ev.fu);
+    });
+
+    noticeTable.addEventListener('change', function (e) {
+      var fu = e.target.closest('[data-fu]');
+      if (!fu) return;
+      var ev = findEvent(Number(fu.getAttribute('data-fu')));
+      if (!ev) return;
+      ev.fu = !!e.detail.on;
+      toastTrack(ev.fu);
+    });
+
+    table.addEventListener('click', function (e) {
+      if (!isSelf()) return;
+      if (e.target.closest('[data-empty-add]')) { openAdd(); return; }
+      /* 「新增至服務紀錄」「轉至活動頁面」功能尚未實作，暫不處理、不顯示通知 */
+      if (e.target.closest('[data-svc]') || e.target.closest('[data-evt]')) return;
+      var del = e.target.closest('[data-del]');
+      if (del) {
+        pendingDelId = Number(del.getAttribute('data-del'));
+        confirmDlg.open({
+          heading: '刪除行程', headingEn: 'Delete Schedule',
+          title: '請確認是否要刪除行程',
+          desc: '已刪除的行程將不會顯示在行事曆上',
+          confirmLabel: '刪除', confirmLabelEn: 'Delete', tone: 'danger'
+        });
+        return;
+      }
+      var edit = e.target.closest('[data-edit]');
+      if (edit) {
+        var ev = findEvent(Number(edit.getAttribute('data-edit')));
+        if (!ev) return;
+        dlg.setAttribute('mode', 'timed');
+        dlg.open({
+          _edit: true, _id: ev.id,
+          allDay: false, title: ev.title,
+          startDate: ev.start.slice(0, 10), endDate: ev.end.slice(0, 10),
+          start: ev.start.slice(11), end: ev.end.slice(11),
+          notes: ev.note
+        });
+      }
+    });
+
+    btnNew.addEventListener('click', function () {
+      /* 目前僅「個人」分頁的新增行程已實作；「新增服務紀錄」待設計 */
+      if (!isSelf() || selectedKind !== 'personal') return;
+      openAdd();
+    });
+
+    dlg.addEventListener('submit', function (e) {
+      var d = e.detail;
+      var day = d.startDate || d.date || selected;
+      var endDay = d.endDate || day;
+      var startAt = d.allDay ? (day + ' 00:00') : (day + ' ' + (d.start || '00:00'));
+      var endAt = d.allDay ? (endDay + ' 23:59') : (endDay + ' ' + (d.end || '00:00'));
+
+      if (d.id != null) {
+        var ev = findEvent(d.id);
+        if (ev) {
+          ev.title = d.title; ev.note = d.notes || '';
+          ev.start = startAt; ev.end = endAt;
+        }
+      } else {
+        EVENTS.push({ id: ++seq, kind: selectedKind, title: d.title, start: startAt, end: endAt, note: d.notes || '' });
+      }
+      persist();
+      refreshCalendar();
+      setSelected(day.replace(/-/g, '/'));
+      toast.show(d.id != null ? '行程已更新' : '行程已新增');
+    });
+
+    /* Outlook 串接：未啟用 ⇄ 已啟用（此為示意，未實際串接）
+       點「未啟用」直接切為「已啟用」+ toast；點「已啟用」先跳確認 modal 才停用 */
+    outlookPill.addEventListener('pill-click', function () {
+      if (outlookPill.getAttribute('state') === 'on') {
+        pendingAction = 'outlook-off';
+        confirmDlg.open({
+          heading: '關閉 Outlook 串接', headingEn: 'Disconnect Outlook',
+          title: '請確認是否要關閉 Outlook 串接',
+          desc: '關閉後行事曆將會停止同步。',
+          confirmLabel: '關閉', confirmLabelEn: 'Disconnect', tone: 'danger'
+        });
+      } else {
+        outlookPill.setAttribute('state', 'on');
+        toast.show('已啟用 Outlook 串接（此為示意）');
+      }
+    });
+
+    confirmDlg.addEventListener('confirm', function () {
+      if (pendingAction === 'outlook-off') {
+        pendingAction = null;
+        outlookPill.setAttribute('state', 'off');
+        toast.show('已關閉 Outlook 串接（此為示意）');
+        return;
+      }
+      if (pendingDelId == null) return;
+      EVENTS = EVENTS.filter(function (x) { return x.id !== pendingDelId; });
+      pendingDelId = null;
+      persist();
+      refreshCalendar();
+      renderTable();
+      toast.show('行程已刪除');
+    });
+    confirmDlg.addEventListener('cancel', function () { pendingDelId = null; pendingAction = null; });
+
+    /* ---------- 初始化 ---------- */
+    refreshCalendar();
+    setSelected(selected);
+  })();
+  </script>
+
+  <script>
+  /* ============ 首頁卡片分頁切換 + 客戶列表分頁============ */
+  (function () {
+    'use strict';
+
+    var tabs = document.getElementById('calTabs');
+    /* JSON 分頁順序：0=客戶列表、1=行事曆、2=服務通知 */
+    var PANELS = {
+      0: document.getElementById('panel-customer'),
+      1: document.getElementById('panel-calendar'),
+      2: document.getElementById('panel-notice')
+    };
+    var custInited = false;
+
+    tabs.addEventListener('tab-change', function (e) {
+      var idx = e.detail.index;
+      Object.keys(PANELS).forEach(function (k) {
+        if (PANELS[k]) PANELS[k].hidden = (Number(k) !== idx);
+      });
+      if (idx === 0 && !custInited) { custInited = true; initCustomerListTab(); }
+    });
+
+    /* ---------- 客戶列表分頁：純前端 mock ---------- */
+    function initCustomerListTab() {
+      var card = document.getElementById('clFilter');
+      var table = document.getElementById('clTable');
+      var pager = document.getElementById('clPager');
+      var elQueryTime = document.getElementById('clQueryTime');
+
+      function esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+      function fmtMoney(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+      function pad2(x) { return (x < 10 ? '0' : '') + x; }
+
+      /* mock 資料：80 筆，涵蓋各標籤組合 */
+      var CORPS = ['北辰科技', '安泰製造', '恆信製造', '星河金融', '遠見金融', '盛達金融', '迅捷物流', '晨光零售', '藍海企業', '遠洋企業'];
+      var CORP_CODES = ['978651456', '976214866', '978548787', '976214867', '976214868', '978651457', '976214869', '978548788', '976214870', '978651458'];
+
+      /* 「客戶群/代號」篩選選項與表格欄位資料源一致 */
+      var corpDropdown = card.querySelector('[data-k="corp"]');
+      if (corpDropdown) {
+        corpDropdown.options = CORPS.slice();
+        corpDropdown.value = CORPS.slice();
+        corpDropdown._initialValue = CORPS.slice();
+        if (corpDropdown._build) corpDropdown._build();
+      }
+      var FOREIGNS = ['一般方案', 'Growth Fund', 'Co-Cover', 'Global Equity'];
+      var PRODUCTS = ['台股', '海外股票'];
+      var SEGMENTS = ['科技業', '製造業', '外資'];
+      var AFFILIATES = ['關係', '一般'];
+      var ROWS = [];
+      (function seed() {
+        var n = 0;
+        for (var i = 0; i < CORPS.length; i++) {
+          for (var j = 0; j < FOREIGNS.length; j++) {
+            for (var k = 0; k < PRODUCTS.length; k++) {
+              n++;
+              var segment = SEGMENTS[(i + j) % SEGMENTS.length];
+              ROWS.push({
+                unit: segment === '外資' ? '境外' : '境內',
+                corp: CORPS[i],
+                corpCode: CORP_CODES[i],
+                segment: segment,
+                foreign: FOREIGNS[j],
+                product: PRODUCTS[k],
+                affiliate: AFFILIATES[(i + k) % 2],
+                turnover: (10 - ((i * 3 + j * 2 + k) % 10)) * 100000000 + n * 1234567
+              });
+            }
+          }
+        }
+      })();
+
+      /* 值 → tag/basic 語意色（見 openspec design.md D3 對照表）*/
+      var UNIT_TONE = { '境內': 'info', '境外': 'error' };
+      var FOREIGN_TONE = { '一般方案': 'info', 'Growth Fund': 'info', 'Co-Cover': 'warning', 'Global Equity': 'info' };
+      var PRODUCT_TONE = { '台股': 'warning', '海外股票': 'promotion' };
+
+      function tag(val, tone) {
+        return '<span class="cl-tag cl-tag--' + tone + '">' + esc(val) + '</span>';
+      }
+
+      var applied = {};   /* 已按「查詢」套用的條件：{ field: [values] } */
+      var page = 1;
+      var pageSize = 20;
+
+      function filteredRows() {
+        var keys = Object.keys(applied);
+        return ROWS.filter(function (r) {
+          return keys.every(function (f) {
+            var sel = applied[f];
+            return !sel || !sel.length || sel.indexOf(r[f]) >= 0;
+          });
+        });
+      }
+
+      var HEAD = '<thead><tr>' +
+        '<th>單位 <span class="en">Unit</span></th>' +
+        '<th>客戶群/代號 <span class="en">Client/Code</span></th>' +
+        '<th>產業類別 <span class="en">Coverage Segment</span></th>' +
+        '<th>境外分類 <span class="en">Foreign Coverage</span></th>' +
+        '<th>商品 <span class="en">Product</span></th>' +
+        '<th>集團戶 <span class="en">Groups</span></th>' +
+        '<th class="cl-col-num">日成交金額（元）<span class="en">Daily Turnover</span></th>' +
+        '</tr></thead>';
+
+      function render() {
+        var rows = filteredRows();
+        pager.setTotal(rows.length, page);
+        page = pager.page;
+        var start = (page - 1) * pageSize;
+        var slice = rows.slice(start, start + pageSize);
+
+        var body;
+        if (!slice.length) {
+          body = '<tbody><tr><td colspan="7"><div class="cl-empty">' +
+            '<span class="cl-empty__ic"><fb-icon name="fb-search"></fb-icon></span>' +
+            '<p class="cl-empty__zh">查無資料</p><p class="cl-empty__en">No Data</p>' +
+            '</div></td></tr></tbody>';
+        } else {
+          body = '<tbody>' + slice.map(function (r) {
+            return '<tr>' +
+              '<td>' + tag(r.unit, UNIT_TONE[r.unit] || 'neutral') + '</td>' +
+              '<td class="cl-col-corp">' + esc(r.unit === '境外' ? r.corp + ' / ' + r.corpCode : r.corp) + '</td>' +
+              '<td>' + tag(r.segment, 'neutral') + '</td>' +
+              '<td>' + tag(r.foreign, FOREIGN_TONE[r.foreign] || 'info') + '</td>' +
+              '<td>' + tag(r.product, PRODUCT_TONE[r.product] || 'neutral') + '</td>' +
+              '<td>' + (r.affiliate ? esc(r.affiliate) : '—') + '</td>' +
+              '<td class="cl-col-num">' + fmtMoney(r.turnover) + '</td>' +
+              '</tr>';
+          }).join('') + '</tbody>';
+        }
+        table.innerHTML = HEAD + body;
+      }
+
+      function collectFilters() {
+        var out = {};
+        card.querySelectorAll('fb-dropdown').forEach(function (dd) {
+          var f = dd.getAttribute('data-k');
+          var v = dd.value;
+          out[f] = Array.isArray(v) ? v.slice() : (v ? [v] : []);
+        });
+        return out;
+      }
+
+      function stampQueryTime() {
+        var d = new Date();
+        elQueryTime.textContent = pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+      }
+
+      document.getElementById('clSearch').addEventListener('click', function () {
+        applied = collectFilters();
+        page = 1;
+        render();
+      });
+
+      document.getElementById('clReset').addEventListener('click', function () {
+        card.querySelectorAll('fb-dropdown').forEach(function (dd) { if (dd.reset) dd.reset(); });
+        applied = {};
+        page = 1;
+        render();
+      });
+
+      document.getElementById('clRefresh').addEventListener('click', function () {
+        render();
+        stampQueryTime();
+      });
+
+      pager.addEventListener('page-change', function (e) {
+        page = e.detail.page;
+        pageSize = e.detail.pageSize;
+        render();
+      });
+
+      stampQueryTime();
+      render();
+    }
+  })();
+  </script>
+</body>
+</html>

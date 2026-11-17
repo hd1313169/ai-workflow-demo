@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>服務紀錄管理</title>
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+  <!-- ============ 1. 頂部導覽 ============ -->
+  <fb-topnav active="marketing"></fb-topnav>
+
+  <main class="page">
+    <!-- ============ 2. 頁面標題 ============ -->
+    <fb-area-title zh="服務紀錄管理" en="Service Records"></fb-area-title>
+
+    <!-- ============ 3. 同層分頁列 ============ -->
+    <!-- 僅「服務紀錄管理」實作、可點擊；其餘 5 項僅顯示文字，無 href、不可互動（見 specs/service-records/spec.md「頁面掛載與導覽連結」） -->
+    <nav class="tabbar">
+      <a href="service_records.html" class="active">服務紀錄管理<span class="en">Service Records</span></a>
+      <span class="tabbar__inert">新增服務紀錄<span class="en">Add Record</span></span>
+      <span class="tabbar__inert">研究員專頁<span class="en">Analyst</span></span>
+      <span class="tabbar__inert">企業戶專頁<span class="en">Firm</span></span>
+      <span class="tabbar__inert">客戶專頁<span class="en">Client</span></span>
+      <span class="tabbar__inert">活動行事曆<span class="en">Calendar</span></span>
+    </nav>
+
+    <!-- ============ 4. 搜尋欄（比照  逐一還原版位／尺寸）============ -->
+    <section class="filter filter--service-records">
+      <div class="filter__grid filter__grid--service-dates">
+        <div class="field">
+          <label>日期 (起) <span class="en">Login Start Time</span></label>
+          <fb-date-field id="dateStart" data-k="start" value="2026/09/01"></fb-date-field>
+        </div>
+        <div class="field">
+          <label>日期 (訖) <span class="en">Login End Time</span></label>
+          <fb-date-field id="dateEnd" data-k="end" value="2026/09/17"></fb-date-field>
+        </div>
+        <div class="field field--quick-range">
+          <label>&nbsp;</label>
+          <div class="quick-range" id="quickRange" role="group" aria-label="日期快速區間">
+            <button type="button" class="quick-range__btn" data-range="thisMonth">本月</button>
+            <button type="button" class="quick-range__btn" data-range="lastMonth">上月</button>
+            <button type="button" class="quick-range__btn" data-range="thisQuarter">本季</button>
+            <button type="button" class="quick-range__btn" data-range="last1Year">近1年</button>
+          </div>
+        </div>
+        <div class="field"><label>客群 <span class="en">Coverage</span></label><fb-dropdown type="single" data-k="coverage"><script type="application/json">{"options":["全部","企業戶","個人客戶","一般客戶"],"value":"全部"}</script></fb-dropdown></div>
+        <div class="field"><label>研究員 <span class="en">Analyst</span></label><fb-dropdown type="single" data-k="analyst"><script type="application/json">{"options":["全部","Sherman Shang","Titan Wang","Rita Wu","張研究員","Lina Chen"],"value":"全部"}</script></fb-dropdown></div>
+      </div>
+
+      <div class="filter__grid cols-5">
+        <div class="field"><label>企業戶 <span class="en">Firm</span></label><fb-dropdown type="single" data-k="firm"><script type="application/json">{"options":["全部","Jefferies","FSR","Fidelity","FMR","Oasis","BlackRock"],"value":"全部"}</script></fb-dropdown></div>
+        <div class="field"><label>互動類型 <span class="en">Interaction</span></label><fb-dropdown type="single" data-k="interaction"><script type="application/json">{"options":["全部","電話","會議","拜訪","線上會議"],"value":"全部"}</script></fb-dropdown></div>
+        <div class="field"><label>互動方式 <span class="en">Method</span></label><fb-dropdown type="single" data-k="method"><script type="application/json">{"options":["全部","主動聯繫","被動回覆"],"value":"全部"}</script></fb-dropdown></div>
+        <div class="field"><label>主題 <span class="en">Topic</span></label><fb-dropdown type="single" data-k="topic"><script type="application/json">{"options":["全部","產業研究","個股研究","總經展望","法說會"],"value":"全部"}</script></fb-dropdown></div>
+        <div class="field"><label>個股 <span class="en">Interest</span></label><input class="text-input" id="interestInput" type="text" placeholder="例：2330 TT"></div>
+      </div>
+
+      <div class="filter__actions">
+        <button class="btn-text neutral" id="btnSetting" type="button">
+          <fb-icon name="fb-settings"></fb-icon>
+          選單項目設定 Setting
+        </button>
+        <button class="btn-text muted" id="btnReset" type="button">
+          <fb-icon name="fb-refresh-cw"></fb-icon>
+          重設 Reset
+        </button>
+        <button class="btn-primary" id="btnSearch" type="button">
+          <fb-icon name="fb-search"></fb-icon>
+          查詢 Search
+        </button>
+      </div>
+    </section>
+
+    <!-- ============ 5. 總表 Summary／明細 Details 分頁（fb-segmented，比照 ）============ -->
+    <!-- Details 以 disabled 狀態呈現：不可點擊，不切換內容（見 specs/service-records/spec.md「總表／明細分頁」） -->
+    <fb-segmented id="summaryTabs" value="總表" style="margin-top:24px">
+      <script type="application/json">[{"zh":"總表","en":"Summary"},{"zh":"明細","en":"Details","disabled":true}]</script>
+    </fb-segmented>
+
+    <!-- ============ 6. 總表區塊：左側直式分頁 + 右側主要內容 ============ -->
+    <div class="summary-layout">
+      <fb-side-tabs id="clientAnalystTabs" active="0">
+        <script type="application/json">[{"zh":"客戶","en":"Client"},{"zh":"研究員","en":"Analyst"}]</script>
+      </fb-side-tabs>
+
+      <div class="summary-main">
+        <!-- 客戶 Client 檢視 -->
+        <div id="clientView" class="summary-view">
+          <div class="chart-card">
+            <h3 class="chart-card__title">服務時數 vs 交易量</h3>
+            <div class="chart-card__body">
+              <div class="chart-legend">
+                <span class="chart-legend__item"><span class="chart-legend__swatch"><span></span></span>服務時數 (min)</span>
+                <span class="chart-legend__item"><span class="chart-legend__icon"><fb-icon name="fb-line-chart"></fb-icon></span>交易量 (USD)</span>
+              </div>
+              <div class="chart-canvas-wrap"><canvas id="clientChart"></canvas></div>
+            </div>
+          </div>
+          <div class="rank-card">
+            <h3 class="rank-card__title">服務效益排名</h3>
+            <div class="rank-table-wrap"><table class="rank-table" id="clientRankTable">
+              <thead><tr>
+                <th>客戶／企業戶 <span class="en">Firm / Client</span></th>
+                <th class="num">服務效益 <span class="en">Benefit</span></th>
+              </tr></thead>
+              <tbody></tbody>
+            </table></div>
+          </div>
+        </div>
+
+        <!-- 研究員 Analyst 檢視 -->
+        <div id="analystView" class="summary-view" hidden>
+          <div class="chart-card">
+            <div class="chart-card__header">
+              <h3 class="chart-card__title">服務效益排名</h3>
+              <p class="chart-card__note">下頁明細層時數 duration 分鐘加總</p>
+            </div>
+            <div class="chart-card__body chart-card__body--donut">
+              <div class="donut-canvas-wrap"><canvas id="analystChart"></canvas></div>
+              <ul class="donut-legend" id="analystLegend"></ul>
+            </div>
+          </div>
+          <div class="rank-card">
+            <h3 class="rank-card__title">研究員服務時數排名 (分鐘)</h3>
+            <div class="rank-table-wrap"><table class="rank-table" id="analystRankTable">
+              <thead><tr>
+                <th>客戶／企業戶 <span class="en">Firm / Client</span></th>
+                <th class="num">服務效益 <span class="en">Benefit</span></th>
+              </tr></thead>
+              <tbody></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/components.js"></script>
+<script src="../assets/js/vendor/chart.umd.js"></script>
+<script>
+/* ---------- 假資料 ---------- */
+/* 服務時數(hours) 與類別順序逐一比照  的長條圖實際像素數值還原（Jefferies..Capital）；
+   服務效益(benefit) 比照該頁「服務效益排名」表格呈現的數字。交易量(line) 為設計稿中僅以裝飾性折線
+   （無獨立座標軸標示）呈現的資料，Figma 未提供可讀取的精確數值，故在與長條共用同一 0–300 座標軸的
+   前提下，依螢幕截圖的視覺高度估算相近的示意值（見 design.md 決策 7）。 */
+const CLIENT_ROWS = [
+  { name: 'Jefferies',  hours: 228, line: 210, benefit: 228000 },
+  { name: 'FSR',        hours: 181, line: 70,  benefit: 181249 },
+  { name: 'Fidelity',   hours: 180, line: 185, benefit: 180750 },
+  { name: 'FMR',        hours: 136, line: 195, benefit: 136937 },
+  { name: 'Oasis',      hours: 131, line: 115, benefit: 131647 },
+  { name: 'BlackRock',  hours: 111, line: 170, benefit: 111429 },
+  { name: 'AP Asset',   hours: 89,  line: 95,  benefit: 89098  },
+  { name: '鴻運物流',    hours: 78,  line: 145, benefit: 10000  },
+  { name: 'Vanguard',   hours: 10,  line: 210, benefit: 9500   },
+  { name: 'Capital',    hours: 9,   line: 80,  benefit: 78667  }
+];
+
+const ANALYST_ROWS = [
+  { name: 'Sherman Shang', minutes: 850 },
+  { name: 'Titan Wang',    minutes: 480 },
+  { name: 'Rita Wu',       minutes: 320 },
+  { name: '張研究員',       minutes: 120 },
+  { name: 'Lina Chen',     minutes: 100 }
+];
+
+/* ---------- token 色值讀取（圖表設定不得寫死十六進位，見 specs/frontend-component-system 「圖表套件 vendoring 規則」）---------- */
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+/* ---------- 客戶 Client：長條(服務時數) + 折線(交易量) 複合圖 ---------- */
+let clientChart = null;
+function renderClientChart(rows) {
+  const ctx = document.getElementById('clientChart');
+  if (clientChart) clientChart.destroy();
+  clientChart = new Chart(ctx, {
+    data: {
+      labels: rows.map(r => r.name),
+      datasets: [
+        {
+          type: 'bar',
+          label: '服務時數 (min)',
+          data: rows.map(r => r.hours),
+          backgroundColor: cssVar('--chart-series-bar'),
+          yAxisID: 'y',
+          order: 1
+        },
+        {
+          type: 'line',
+          label: '交易量 (USD)',
+          data: rows.map(r => r.line),
+          borderColor: cssVar('--chart-series-line'),
+          backgroundColor: cssVar('--chart-series-line'),
+          borderWidth: 2,
+          pointRadius: 3,
+          /* Chart.js 依 order 由小到大排序後「反向」繪製（越小的 order 越晚畫、疊在最上層），
+             故折線需給比長條更小的 order 才會疊在長條前方，避免折線被長條的實心矩形蓋住 */
+          order: 0,
+          tension: 0,
+          yAxisID: 'y'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      /* 設計稿僅單一左側座標軸（0–300h），折線與長條共用同一軸，不額外發明右側座標軸；
+         圖例改用自訂 HTML（.chart-legend，見 HTML），停用 Chart.js 內建圖例，
+         因設計稿「交易量」圖例用的是 fb-line-chart 圖示而非色塊，內建圖例無法呈現 */
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { maxRotation: 0, minRotation: 0, autoSkip: false, font: { size: 11 } } },
+        y: { position: 'left', min: 0, max: 300, ticks: { stepSize: 75, callback: (v) => v + 'h' } }
+      }
+    }
+  });
+}
+
+/* ---------- 研究員 Analyst：服務效益排名圓環圖 ---------- */
+let analystChart = null;
+function renderAnalystChart(rows) {
+  const ctx = document.getElementById('analystChart');
+  const total = rows.reduce((s, r) => s + r.minutes, 0);
+  const colors = ['--chart-donut-1', '--chart-donut-2', '--chart-donut-3', '--chart-donut-4', '--chart-donut-5'].map(cssVar);
+  if (analystChart) analystChart.destroy();
+  analystChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: rows.map(r => r.name),
+      datasets: [{ data: rows.map(r => r.minutes), backgroundColor: colors, borderWidth: 0 }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: { legend: { display: false } }
+    }
+  });
+  const legend = document.getElementById('analystLegend');
+  legend.innerHTML = rows.map((r, i) => {
+    const pct = Math.round((r.minutes / total) * 100);
+    return '<li><span class="donut-legend__dot" style="background:' + colors[i] + '"></span>' +
+      r.name + ' ' + r.minutes + ' min (' + pct + '%)</li>';
+  }).join('');
+}
+
+/* ---------- 排名表格 ---------- */
+function renderClientRankTable(rows) {
+  const sorted = rows.slice().sort((a, b) => b.benefit - a.benefit);
+  document.querySelector('#clientRankTable tbody').innerHTML = sorted.map(r =>
+    '<tr><td>' + r.name + '</td><td class="num">' + r.benefit.toLocaleString('en-US') + '</td></tr>'
+  ).join('');
+}
+function renderAnalystRankTable(rows) {
+  const sorted = rows.slice().sort((a, b) => b.minutes - a.minutes);
+  document.querySelector('#analystRankTable tbody').innerHTML = sorted.map(r =>
+    '<tr><td>' + r.name + '</td><td class="num">' + r.minutes + ' min</td></tr>'
+  ).join('');
+}
+
+/* ---------- 依目前篩選條件重新渲染（Search 不做真實運算，示意性重繪目前假資料，見 design.md 決策 4）---------- */
+function renderSummary() {
+  renderClientChart(CLIENT_ROWS);
+  renderClientRankTable(CLIENT_ROWS);
+  renderAnalystChart(ANALYST_ROWS);
+  renderAnalystRankTable(ANALYST_ROWS);
+}
+renderSummary();
+
+/* ---------- 左側直式分頁：切換客戶／研究員檢視 ---------- */
+const clientView = document.getElementById('clientView');
+const analystView = document.getElementById('analystView');
+document.getElementById('clientAnalystTabs').addEventListener('tab-change', (e) => {
+  const isClient = e.detail.index === 0;
+  clientView.hidden = !isClient;
+  analystView.hidden = isClient;
+});
+
+/* ---------- 日期快速區間按鈕 ---------- */
+const dateStartEl = document.getElementById('dateStart');
+const dateEndEl = document.getElementById('dateEnd');
+/* fb-date-field 的 .value setter 會同步覆寫其內部 reset 基準值（見 components.js），
+   故快速區間點擊後不能再仰賴 .reset() 還原成頁面預設日期，改由這裡記住原始預設值 */
+const DEFAULT_DATE_START = dateStartEl.value;
+const DEFAULT_DATE_END = dateEndEl.value;
+const fmt = (d) => d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0');
+function quickRangeDates(kind) {
+  const today = new Date();
+  const end = new Date(today);
+  let start;
+  if (kind === 'thisMonth') {
+    start = new Date(today.getFullYear(), today.getMonth(), 1);
+  } else if (kind === 'lastMonth') {
+    start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    end.setTime(new Date(today.getFullYear(), today.getMonth(), 0).getTime());
+  } else if (kind === 'thisQuarter') {
+    const qStartMonth = Math.floor(today.getMonth() / 3) * 3;
+    start = new Date(today.getFullYear(), qStartMonth, 1);
+  } else {
+    start = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+  }
+  return [fmt(start), fmt(end)];
+}
+document.getElementById('quickRange').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-range]');
+  if (!btn) return;
+  const [s, en] = quickRangeDates(btn.dataset.range);
+  dateStartEl.value = s;
+  dateEndEl.value = en;
+});
+
+/* ---------- 重設／查詢 ---------- */
+document.getElementById('btnReset').addEventListener('click', () => {
+  document.querySelectorAll('fb-dropdown').forEach(el => el.reset && el.reset());
+  dateStartEl.value = DEFAULT_DATE_START;
+  dateEndEl.value = DEFAULT_DATE_END;
+  document.getElementById('interestInput').value = '';
+  renderSummary();
+});
+document.getElementById('btnSearch').addEventListener('click', renderSummary);
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!-- 與正式頁面相同：三支 CSS + 兩支傳統 script（全域註冊 fb-* 元件）；檔案由 staticDirs 帶到 app/ -->
+<link rel="stylesheet" href="app/assets/css/tokens.css">
+<link rel="stylesheet" href="app/assets/css/base.css">
+<link rel="stylesheet" href="app/assets/css/components.css">
+<script src="app/assets/js/icons.js"></script>
+<script src="app/assets/js/components.js"></script>
+<style>
+  /* ===== 預覽區排版輔助（只用 token，不寫色值） ===== */
+  .sb-stage { padding: 24px; background: var(--bg-page); }
+  .sb-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .sb-col { min-width: 240px; flex: 1; }
+  .sb-note { font-size: var(--fs-xs); color: var(--text-faint); margin-top: 12px; }
+
+  /* ===== Foundations 共用 ===== */
+  .sb-doc { max-width: 960px; }
+  .sb-lead { margin: 0 0 24px; color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-sm); }
+  .sb-doc code { font-size: var(--fs-xs); color: var(--text-muted); }
+  .sb-group { margin-bottom: 32px; }
+  .sb-group h3 {
+    display: flex; align-items: baseline; gap: 8px; margin: 0 0 12px;
+    font-size: var(--fs-md); font-weight: var(--fw-medium); text-transform: capitalize;
+  }
+  .sb-group h3 span { font-size: var(--fs-xs); color: var(--text-faint); font-weight: var(--fw-regular); }
+
+  /* 色票卡片牆 */
+  .sb-color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .sb-color {
+    margin: 0; background: var(--bg-surface); border: 1px solid var(--line);
+    border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .sb-color__chip { display: block; height: 64px; border-bottom: 1px solid var(--line); }
+  .sb-color figcaption { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px 10px; min-width: 0; }
+  .sb-color strong { font-size: var(--fs-xs); font-weight: var(--fw-medium); word-break: break-all; }
+  .sb-color small { font-size: var(--fs-xs); color: var(--text-faint); word-break: break-all; }
+
+  /* 字樣清單 */
+  .sb-type { background: var(--bg-surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+  .sb-type__row { display: grid; grid-template-columns: 140px 1fr; gap: 24px; align-items: center; padding: 16px 20px; }
+  .sb-type__row + .sb-type__row { border-top: 1px solid var(--line); }
+  .sb-type__meta { display: flex; flex-direction: column; gap: 2px; }
+  .sb-type__meta strong { font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+  .sb-type__sample { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 間距比例尺 */
+  .sb-scale { background: var(--bg-surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 8px 20px; }
+  .sb-scale__row { display: grid; grid-template-columns: 120px 56px 1fr; gap: 16px; align-items: center; padding: 10px 0; }
+  .sb-scale__row + .sb-scale__row { border-top: 1px solid var(--line); }
+  .sb-scale__row strong { font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+  .sb-scale__track { display: block; height: 16px; }
+  .sb-scale__bar { display: block; height: 16px; background: var(--accent-primary); border-radius: var(--radius-xxs); opacity: .85; }
+
+  /* 圓角方塊 */
+  .sb-radius-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 16px; }
+  .sb-radius { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .sb-radius__tile {
+    display: block; width: 88px; height: 88px;
+    background: var(--bg-subtle); border: 2px solid var(--accent-primary);
+  }
+  .sb-radius figcaption { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .sb-radius strong { font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+
+  /* Pattern 說明卡 */
+  .sb-pattern-meta {
+    display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding: 12px 16px;
+    background: var(--bg-surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
+    font-size: var(--fs-xs);
+  }
+  .sb-pattern-meta div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .sb-pattern-meta span { width: 56px; color: var(--text-faint); }
+  .sb-pattern-meta code, .sb-pattern-meta em {
+    font-style: normal; padding: 2px 8px; border-radius: var(--radius-xs); background: var(--bg-subtle);
+  }
+  .sb-pattern-meta em { background: var(--bg-hover-subtle); color: var(--text-muted); }
+</style>

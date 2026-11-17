@@ -1,0 +1,22 @@
+/* =============================================================================
+ * base.css — reset / 版面 / body
+ * 僅使用 var(--token)；色值一律來自 tokens.css
+ * ========================================================================== */
+
+* { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  padding: 0 0 64px;
+  /* 頁面底色為淺灰，無裝飾光暈 */
+  background-color: var(--bg-page);
+  font-family: var(--font-cn);
+  color: var(--cell-text);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+}
+
+/* 內容區：1920 版面左右各留 240px，最大 1440 置中 */
+.page { max-width: 1440px; margin: 0 auto; padding: 0 24px; }

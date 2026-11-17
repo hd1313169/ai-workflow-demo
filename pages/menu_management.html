@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>選單管理</title>
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<style>
+  /* 選單管理頁專屬版面（僅引用 token，不含色值字面值）*/
+
+  /* 頁面標題與內容的間距（原分頁列已移除）*/
+  .area-title + * { margin-top: 24px; }
+
+  /* 篩選：三欄等寬（關鍵字 + 狀態 + 父節點）*/
+  .mm-filter .filter__grid { grid-template-columns: 1fr 1fr 1fr; }
+
+  .mm-keyword {
+    display: flex; align-items: center; gap: var(--pad-sm);
+    height: 40px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg-surface);
+  }
+  .mm-keyword svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--color-grey-500); }
+  .mm-keyword input { flex: 1; border: 0; outline: 0; font: inherit; color: var(--color-ink); background: transparent; min-width: 0; }
+  .mm-keyword input::placeholder { color: var(--text-placeholder); }
+
+  .mm-actions { display: flex; justify-content: flex-end; gap: var(--pad-sm); margin: 20px 0 12px; }
+
+  /* 選單表 */
+  .mm-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .mm-table col.c-name   { width: 12%; }
+  .mm-table col.c-memo   { width: 11%; }
+  .mm-table col.c-order  { width: 6%; }
+  .mm-table col.c-layer  { width: 6%; }
+  .mm-table col.c-parent { width: 9%; }
+  .mm-table col.c-cdate  { width: 9%; }
+  .mm-table col.c-cby    { width: 9%; }
+  .mm-table col.c-ddate  { width: 9%; }
+  .mm-table col.c-dby    { width: 9%; }
+  .mm-table col.c-state  { width: 6%; }
+  .mm-table col.c-ops    { width: 13%; }
+  .mm-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--color-grey-100); color: var(--color-ink);
+    font-weight: var(--fw-medium); font-size: var(--fs-sm); line-height: var(--lh-sm);
+    text-align: left; padding: var(--pad-md) var(--pad-sm); white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+  }
+  .mm-table thead th .hcell { display: inline-flex; align-items: center; gap: 4px; }
+  .mm-table thead th .hcell__t { display: inline-flex; flex-direction: column; }
+  .mm-table thead th .hcell__en { font-size: 12px; font-weight: var(--fw-regular); color: var(--color-grey-500); }
+  .mm-table thead th .sort-ic { color: var(--color-grey-500); cursor: pointer; }
+  .mm-table thead th .sort-ic:hover { color: var(--head-bg-primary); }
+  .mm-table tbody td {
+    border-top: 1px solid var(--line);
+    padding: var(--pad-md) var(--pad-sm);
+    font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--cell-text);
+    vertical-align: middle; word-break: break-all;
+  }
+  .mm-table tbody tr:hover td { background: var(--bg-hover-subtle); }
+  .mm-name { color: var(--color-ink); font-weight: var(--fw-medium); }
+  .mm-muted { color: var(--text-muted); }
+
+  /* 狀態徽章（實心圓角膠囊、白字，對照角色管理 ）*/
+  .mm-state {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 22px; padding: 2px 12px;
+    border-radius: 999px; font-size: 12px; line-height: 18px; font-weight: var(--fw-medium);
+    color: var(--badge-status-text);
+  }
+  .mm-state--on  { background: var(--badge-status-active); }
+  .mm-state--off { background: var(--badge-status-inactive); }
+
+  .mm-op-btn { padding: 6px 12px; font-size: var(--fs-sm); white-space: nowrap; }
+  .mm-op-btn fb-icon { width: 16px; height: 16px; }
+
+  .mm-empty { text-align: center; color: var(--text-faint); padding: 40px 12px; }
+
+  /* ---- Modal 內表單 ---- */
+  .mm-form { display: flex; flex-direction: column; gap: 24px; }
+
+  /* 「啟用功能」以外的區塊：淺灰底（對照 Figma neutral-lv2）*/
+  .mm-section {
+    display: flex; flex-direction: column; gap: 16px;
+    padding: 16px; border: 1px solid var(--line);
+    border-radius: var(--radius-md); background: var(--color-grey-100);
+  }
+  .mm-section__title { font-size: var(--fs-md); font-weight: var(--fw-medium); color: var(--color-ink); }
+  .mm-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .mm-field { display: flex; flex-direction: column; gap: var(--gap-2xs); }
+  .mm-field > label { font-family: var(--font-cn); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: var(--fw-medium); color: var(--form-label-text); }
+  .mm-field > label .en { font-weight: var(--fw-regular); color: var(--form-label-note); }
+  .mm-field > label em { color: var(--accent-danger); font-style: normal; }
+  .mm-input, .mm-textarea {
+    font: inherit; color: var(--color-ink); background: var(--bg-surface);
+    border: 1px solid var(--line); border-radius: var(--radius-md);
+    padding: 9px 12px; width: 100%; outline: 0;
+  }
+  .mm-textarea { resize: vertical; min-height: 72px; }
+  .mm-input:focus, .mm-textarea:focus { border-color: var(--head-bg-primary); }
+  .mm-input::placeholder, .mm-textarea::placeholder { color: var(--text-placeholder); }
+  .mm-field.is-invalid .mm-input,
+  .mm-field.is-invalid .mm-textarea { border-color: var(--accent-danger); }
+  .mm-counter { align-self: flex-end; font-size: 12px; line-height: 18px; color: var(--text-muted); }
+
+  .mm-modal-btns { display: inline-flex; gap: var(--pad-sm); }
+
+  @media (max-width: 900px) {
+    .mm-filter .filter__grid { grid-template-columns: 1fr; }
+    .mm-grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <!-- ============ 1. 頂部導覽 ============ -->
+  <fb-topnav active="tools"></fb-topnav>
+
+  <main class="page">
+    <!-- ============ 2. 頁面標題 ============ -->
+    <fb-area-title zh="選單管理" en="Menu Mgt."></fb-area-title>
+
+<!-- ============ 4. 篩選 ============ -->
+    <fb-filter-card class="mm-filter">
+      <div class="filter__grid">
+        <div class="field">
+          <label>關鍵字 <span class="en">Keyword</span></label>
+          <div class="mm-keyword">
+            <fb-icon name="fb-search"></fb-icon>
+            <input type="text" id="fKeyword" placeholder="搜尋功能名稱">
+          </div>
+        </div>
+        <div class="field">
+          <label>狀態 <span class="en">Status</span></label>
+          <fb-dropdown id="fStatus" type="single"><script type="application/json">{"options":["所有狀態 (All Status)","啟用","停用"],"value":"所有狀態 (All Status)"}</script></fb-dropdown>
+        </div>
+        <div class="field">
+          <label>父節點 <span class="en">Parent</span></label>
+          <div class="mm-keyword">
+            <input type="text" id="fParent" placeholder="輸入父節點">
+          </div>
+        </div>
+      </div>
+      <div class="filter__actions">
+        <button class="btn-text muted" id="btnReset" type="button"><fb-icon name="fb-reset"></fb-icon> 重設 Reset</button>
+        <button class="btn-primary" id="btnSearch" type="button"><fb-icon name="fb-search"></fb-icon> 查詢 Search</button>
+      </div>
+    </fb-filter-card>
+
+    <!-- ============ 5. 動作列 ============ -->
+    <div class="mm-actions">
+      <button class="btn-primary" id="btnAdd" type="button"><fb-icon name="fb-plus"></fb-icon> 新增選單 Add</button>
+      <button class="btn-outline" id="btnExport" type="button"><fb-icon name="fb-export"></fb-icon> 匯出 Export</button>
+    </div>
+
+    <!-- ============ 6. 選單表 ============ -->
+    <div class="table-clip">
+      <div class="table-wrap">
+        <table class="mm-table" id="menuTable"></table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ 7. 選單 Modal（新增／編輯共用）============ -->
+  <fb-modal id="menuModal" heading="新增選單功能" heading-en="Add Menu Item">
+    <form class="mm-form" onsubmit="return false">
+      <fb-toggle id="menuActive" variant="card" checked zh="啟用此功能" en="Active Status"
+        desc="停用後將暫時無法使用相關功能"></fb-toggle>
+
+      <div class="mm-section">
+        <div class="mm-section__title">功能基本資料 Function Info</div>
+
+        <div class="mm-field" id="fldName">
+          <label>功能名稱 Function Name <em>*</em></label>
+          <input type="text" class="mm-input" id="menuName" maxlength="30" placeholder="請輸入功能名稱">
+          <span class="mm-counter" id="nameCount">0/30</span>
+        </div>
+
+        <div class="mm-field">
+          <label>說明 Memo</label>
+          <textarea class="mm-textarea" id="menuMemo" maxlength="64" rows="3" placeholder="請輸入"></textarea>
+          <span class="mm-counter" id="memoCount">0/64</span>
+        </div>
+
+        <div class="mm-field">
+          <label>URL</label>
+          <input type="text" class="mm-input" id="menuUrl" maxlength="200" placeholder="請輸入URL">
+          <span class="mm-counter" id="urlCount">0/200</span>
+        </div>
+      </div>
+
+      <div class="mm-section">
+        <div class="mm-section__title">功能類型 Function Type</div>
+        <div class="mm-grid2">
+          <div class="mm-field" id="fldCategory">
+            <label>種類 Category <em>*</em></label>
+            <fb-dropdown id="menuCategory" type="single"><script type="application/json">{"options":["WEB"],"value":"WEB"}</script></fb-dropdown>
+          </div>
+
+          <div class="mm-field" id="fldOrder">
+            <label>顯示順序 Order <em>*</em></label>
+            <input type="text" class="mm-input" id="menuOrder" inputmode="numeric" maxlength="9" placeholder="請輸入顯示順序">
+            <span class="mm-counter" id="orderCount">0/9</span>
+          </div>
+
+          <div class="mm-field" id="fldLayer">
+            <label>層級 Layer <em>*</em></label>
+            <fb-dropdown id="menuLayer" type="single"><script type="application/json">{"options":["請選擇層級","1","2","3"],"value":"請選擇層級"}</script></fb-dropdown>
+          </div>
+
+          <div class="mm-field" id="fldParent">
+            <label>父節點 Parent <em>*</em></label>
+            <fb-dropdown id="menuParent" type="single"><script type="application/json">{"options":["請選擇父節點","客戶綜合查詢","業務推廣","報表中心","商品查詢","其他工具"],"value":"請選擇父節點"}</script></fb-dropdown>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div data-modal-footer style="display:flex;align-items:center;justify-content:flex-end;gap:16px;width:100%">
+      <span class="mm-modal-btns">
+        <button class="btn-neutral-outline" type="button" data-modal-cancel>取消 Cancel</button>
+        <button class="btn-primary" type="button" id="menuSave">儲存 Save</button>
+      </span>
+    </div>
+  </fb-modal>
+
+  <fb-toast id="menuToast"></fb-toast>
+
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var LAYER_PLACEHOLDER = '請選擇層級';
+  var PARENT_PLACEHOLDER = '請選擇父節點';
+
+  /* ---------- 選單功能資料（寫死；）---------- */
+  var MENUS = [
+    { name: '保費明細', memo: 'MVP6-5.2.壽險 - 保費明細', order: '0', layer: '3', category: 'WEB', url: '', parent: '商品查詢', createdAt: '2025/09/18', createdBy: '900001 總公司', disabledAt: '', disabledBy: '', active: true },
+    { name: '客戶基本資料不遮罩', memo: '在客戶基本資料的部分不做遮罩', order: '1004', layer: '2', category: 'WEB', url: '', parent: '客戶綜合查詢', createdAt: '2026/05/27', createdBy: 'ADMIN', disabledAt: '', disabledBy: '', active: true },
+    { name: '客群經營分析', memo: 'CS儀表板-第二批-customer-segment-analysis', order: '650', layer: '3', category: 'WEB', url: '', parent: '報表中心', createdAt: '2026/05/03', createdBy: 'ADMIN', disabledAt: '', disabledBy: '', active: true },
+    { name: '名單成效分析', memo: 'CS儀表板-第二批-list-performance-analysis', order: '242', layer: '3', category: 'WEB', url: '', parent: '報表中心', createdAt: '2026/05/02', createdBy: 'ADMIN', disabledAt: '', disabledBy: '', active: true },
+    { name: '業務員財管生產力檢視', memo: '', order: '2', layer: '3', category: 'WEB', url: '', parent: '報表中心', createdAt: '2026/04/24', createdBy: '900001 總公司', disabledAt: '', disabledBy: '', active: true },
+    { name: '(海外股票)定期定額查詢', memo: 'MVP8-商品查詢-海外股票-定期定額查詢', order: '0', layer: '3', category: 'WEB', url: '', parent: '商品查詢', createdAt: '2026/04/24', createdBy: '900001 總公司', disabledAt: '', disabledBy: '', active: true },
+    { name: '海外股票', memo: 'MVP8-商品查詢-海外股票(副標題)', order: '700', layer: '2', category: 'WEB', url: '', parent: '商品查詢', createdAt: '2026/04/24', createdBy: '900001 總公司', disabledAt: '', disabledBy: '', active: true },
+    { name: '平均利率報表', memo: 'MVP8-商品查詢-融資-loan-avg-rate', order: '0', layer: '3', category: 'WEB', url: '', parent: '報表中心', createdAt: '2026/03/04', createdBy: '000114 ADMIN', disabledAt: '', disabledBy: '', active: true },
+    { name: '融資', memo: 'MVP8-商品查詢-融資(副標題)', order: '0', layer: '2', category: 'WEB', url: '', parent: '商品查詢', createdAt: '2026/03/04', createdBy: '000114 ADMIN', disabledAt: '2026/08/04', disabledBy: '000114 ADMIN', active: false }
+  ];
+  MENUS.forEach(function (m, i) { m._seq = i; });
+  function nextSeq(arr) { return arr.length ? Math.max.apply(null, arr.map(function (x) { return x._seq || 0; })) + 1 : 0; }
+
+  /* ---------- DOM ---------- */
+  var table = document.getElementById('menuTable');
+  var modal = document.getElementById('menuModal');
+  var toast = document.getElementById('menuToast');
+  var activeToggle = document.getElementById('menuActive');
+  var nameInput = document.getElementById('menuName');
+  var memoInput = document.getElementById('menuMemo');
+  var urlInput = document.getElementById('menuUrl');
+  var orderInput = document.getElementById('menuOrder');
+  var categoryDd = document.getElementById('menuCategory');
+  var layerDd = document.getElementById('menuLayer');
+  var parentDd = document.getElementById('menuParent');
+  var nameCount = document.getElementById('nameCount');
+  var memoCount = document.getElementById('memoCount');
+  var urlCount = document.getElementById('urlCount');
+  var orderCount = document.getElementById('orderCount');
+  var saveBtn = document.getElementById('menuSave');
+  var fldName = document.getElementById('fldName');
+  var fldOrder = document.getElementById('fldOrder');
+  var fldLayer = document.getElementById('fldLayer');
+  var fldParent = document.getElementById('fldParent');
+
+  function ddSet(dd, v) { dd.value = v; if (dd._syncLabel) dd._syncLabel(); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function dash(s) { return s ? esc(s) : '<span class="mm-muted">-</span>'; }
+
+  /* ---------- 篩選（僅「查詢」時套用）---------- */
+  var applied = { keyword: '', status: '', parent: '' };
+
+  function passesFilter(m) {
+    if (applied.keyword && m.name.indexOf(applied.keyword) === -1) return false;
+    if (applied.status === '啟用' && !m.active) return false;
+    if (applied.status === '停用' && m.active) return false;
+    if (applied.parent && (m.parent || '').indexOf(applied.parent) === -1) return false;
+    return true;
+  }
+
+  /* ---------- 排序（預設：維持原順序）---------- */
+  var sort = null;   // { col, dir }
+  var sortVal = {
+    name: function (m) { return m.name; },
+    order: function (m) { return parseInt(m.order, 10) || 0; },
+    layer: function (m) { return parseInt(m.layer, 10) || 0; },
+    parent: function (m) { return m.parent || ''; },
+    createdAt: function (m) { return m.createdAt; },
+    state: function (m) { return m.active ? 0 : 1; }
+  };
+
+  function sortedRows(rows) {
+    return fbSortRows(rows, { sort: sort, sortVal: sortVal });
+  }
+
+  /* ---------- 選單表 ---------- */
+  var HEADS = [
+    { key: 'name', zh: '功能名稱', en: 'Name', sortable: true },
+    { key: 'memo', zh: '說明', en: 'Description', sortable: false },
+    { key: 'order', zh: '顯示順序', en: 'Sort', sortable: true },
+    { key: 'layer', zh: '層級', en: 'Layer', sortable: true },
+    { key: 'parent', zh: '父節點', en: 'Parent', sortable: true },
+    { key: 'createdAt', zh: '創建日期', en: 'Create Date', sortable: true },
+    { key: 'createdBy', zh: '創建者', en: 'Creator', sortable: false },
+    { key: 'disabledAt', zh: '停用日期', en: 'Terminate Date', sortable: false },
+    { key: 'disabledBy', zh: '停用者', en: 'Terminator', sortable: false },
+    { key: 'state', zh: '狀態', en: 'State', sortable: true },
+    { key: 'ops', zh: '操作', en: 'Action', sortable: false }
+  ];
+
+  function renderTable() {
+    var rows = sortedRows(MENUS.filter(passesFilter));
+
+    var html = '<colgroup>' +
+      '<col class="c-name"><col class="c-memo"><col class="c-order"><col class="c-layer"><col class="c-parent">' +
+      '<col class="c-cdate"><col class="c-cby"><col class="c-ddate"><col class="c-dby">' +
+      '<col class="c-state"><col class="c-ops"></colgroup>';
+
+    html += '<thead><tr>' + HEADS.map(function (h) {
+      var s = h.sortable
+        ? ' <span class="sort-ic" data-col="' + h.key + '" role="button" title="排序">' +
+          FbIcon.sort(sort && sort.col === h.key ? sort.dir : null) + '</span>'
+        : '';
+      return '<th><span class="hcell"><span class="hcell__t">' + h.zh +
+        '<span class="hcell__en">' + h.en + '</span></span>' + s + '</span></th>';
+    }).join('') + '</tr></thead>';
+
+    if (!rows.length) {
+      html += '<tbody><tr><td colspan="11" class="mm-empty">查無符合條件的選單功能</td></tr></tbody>';
+      table.innerHTML = html;
+      bindSort();
+      return;
+    }
+
+    html += '<tbody>' + rows.map(function (m) {
+      var idx = MENUS.indexOf(m);
+      return '<tr>' +
+        '<td><span class="mm-name">' + esc(m.name) + '</span></td>' +
+        '<td>' + dash(m.memo) + '</td>' +
+        '<td>' + esc(m.order) + '</td>' +
+        '<td>' + esc(m.layer) + '</td>' +
+        '<td>' + dash(m.parent) + '</td>' +
+        '<td>' + esc(m.createdAt) + '</td>' +
+        '<td>' + esc(m.createdBy) + '</td>' +
+        '<td>' + dash(m.disabledAt) + '</td>' +
+        '<td>' + dash(m.disabledBy) + '</td>' +
+        '<td><span class="mm-state mm-state--' + (m.active ? 'on' : 'off') + '">' +
+          (m.active ? '啟用' : '停用') + '</span></td>' +
+        '<td><button class="btn-outline mm-op-btn" type="button" data-edit="' + idx + '">' +
+          '<fb-icon name="fb-edit"></fb-icon> 編輯 Edit</button></td>' +
+        '</tr>';
+    }).join('') + '</tbody>';
+
+    table.innerHTML = html;
+    bindSort();
+    table.querySelectorAll('[data-edit]').forEach(function (b) {
+      b.addEventListener('click', function () { openEdit(+b.getAttribute('data-edit')); });
+    });
+  }
+
+  function bindSort() {
+    table.querySelectorAll('.sort-ic[data-col]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var k = el.getAttribute('data-col');
+        if (!sort || sort.col !== k) sort = { col: k, dir: 'asc' };
+        else if (sort.dir === 'asc') sort.dir = 'desc';
+        else sort = null;   // 第三次點擊回預設
+        renderTable();
+      });
+    });
+  }
+
+  /* ---------- Modal：新增 / 編輯 ---------- */
+  var editingIndex = null;
+
+  function updateCounts() {
+    nameCount.textContent = nameInput.value.length + '/30';
+    memoCount.textContent = memoInput.value.length + '/64';
+    urlCount.textContent = urlInput.value.length + '/200';
+    orderCount.textContent = orderInput.value.length + '/9';
+  }
+
+  function requiredFilled() {
+    return nameInput.value.trim() !== '' &&
+      categoryDd.value !== '' &&
+      orderInput.value.trim() !== '' &&
+      layerDd.value !== LAYER_PLACEHOLDER &&
+      parentDd.value !== PARENT_PLACEHOLDER;
+  }
+  function refreshSave() { saveBtn.disabled = !requiredFilled(); }
+
+  function clearInvalid() {
+    [fldName, fldOrder, fldLayer, fldParent].forEach(function (f) { f.classList.remove('is-invalid'); });
+  }
+
+  function openAdd() {
+    editingIndex = null;
+    modal.setHeading('新增選單功能', 'Add Menu Item');
+    activeToggle.checked = true;
+    nameInput.value = '';
+    memoInput.value = '';
+    urlInput.value = '';
+    orderInput.value = '';
+    ddSet(categoryDd, 'WEB');
+    ddSet(layerDd, LAYER_PLACEHOLDER);
+    ddSet(parentDd, PARENT_PLACEHOLDER);
+    updateCounts();
+    clearInvalid();
+    refreshSave();
+    modal.open();
+    setTimeout(function () { nameInput.focus(); }, 0);
+  }
+
+  function openEdit(i) {
+    editingIndex = i;
+    var m = MENUS[i];
+    modal.setHeading('編輯選單功能', 'Edit Menu Item');
+    activeToggle.checked = m.active;
+    nameInput.value = m.name;
+    memoInput.value = m.memo;
+    urlInput.value = m.url;
+    orderInput.value = m.order;
+    ddSet(categoryDd, m.category || 'WEB');
+    ddSet(layerDd, m.layer || LAYER_PLACEHOLDER);
+    ddSet(parentDd, m.parent || PARENT_PLACEHOLDER);
+    updateCounts();
+    clearInvalid();
+    refreshSave();
+    modal.open();
+  }
+
+  function save() {
+    if (!requiredFilled()) {
+      fldName.classList.toggle('is-invalid', nameInput.value.trim() === '');
+      fldOrder.classList.toggle('is-invalid', orderInput.value.trim() === '');
+      fldLayer.classList.toggle('is-invalid', layerDd.value === LAYER_PLACEHOLDER);
+      fldParent.classList.toggle('is-invalid', parentDd.value === PARENT_PLACEHOLDER);
+      return;
+    }
+
+    var isActive = activeToggle.checked;
+    var data = {
+      name: nameInput.value.trim(),
+      memo: memoInput.value.trim(),
+      url: urlInput.value.trim(),
+      order: orderInput.value.trim(),
+      category: categoryDd.value,
+      layer: layerDd.value,
+      parent: parentDd.value
+    };
+
+    if (editingIndex === null) {
+      MENUS.push({
+        name: data.name, memo: data.memo, order: data.order, layer: data.layer,
+        category: data.category, url: data.url, parent: data.parent,
+        createdAt: todayStr(), createdBy: '我',
+        disabledAt: isActive ? '' : todayStr(), disabledBy: isActive ? '' : '我',
+        active: isActive, _seq: nextSeq(MENUS)
+      });
+      finish('選單功能已新增');
+      return;
+    }
+
+    var m = MENUS[editingIndex];
+    var wasActive = m.active;
+    m.name = data.name;
+    m.memo = data.memo;
+    m.url = data.url;
+    m.order = data.order;
+    m.category = data.category;
+    m.layer = data.layer;
+    m.parent = data.parent;
+    m.active = isActive;
+
+    if (wasActive && !isActive) {
+      m.disabledAt = todayStr();
+      m.disabledBy = '我';
+      finish('選單功能已停用');
+    } else if (!wasActive && isActive) {
+      m.disabledAt = '';
+      m.disabledBy = '';
+      finish('選單功能已啟用');
+    } else {
+      finish('選單功能已更新');
+    }
+  }
+
+  function finish(msg) {
+    modal.close();
+    renderTable();
+    toast.show(msg);
+  }
+
+  function todayStr() {
+    var d = new Date();
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate());
+  }
+
+  /* ---------- 事件綁定 ---------- */
+  nameInput.addEventListener('input', function () {
+    fldName.classList.remove('is-invalid');
+    updateCounts();
+    refreshSave();
+  });
+  memoInput.addEventListener('input', function () { updateCounts(); });
+  urlInput.addEventListener('input', function () { updateCounts(); });
+  orderInput.addEventListener('input', function () {
+    var digits = orderInput.value.replace(/\D+/g, '');
+    if (digits !== orderInput.value) orderInput.value = digits;
+    fldOrder.classList.remove('is-invalid');
+    updateCounts();
+    refreshSave();
+  });
+  layerDd.addEventListener('change', function () {
+    fldLayer.classList.remove('is-invalid');
+    refreshSave();
+  });
+  parentDd.addEventListener('change', function () {
+    fldParent.classList.remove('is-invalid');
+    refreshSave();
+  });
+  categoryDd.addEventListener('change', refreshSave);
+  saveBtn.addEventListener('click', save);
+  document.getElementById('btnAdd').addEventListener('click', openAdd);
+
+  /* 匯出：純示意，不改變表格或篩選狀態 */
+  document.getElementById('btnExport').addEventListener('click', function () {
+    toast.show('（原型）匯出功能為示意');
+  });
+
+  /* 篩選 */
+  document.getElementById('btnSearch').addEventListener('click', function () {
+    applied.keyword = document.getElementById('fKeyword').value.trim();
+    var sv = document.getElementById('fStatus').value;
+    applied.status = /所有狀態/.test(sv) ? '' : sv;
+    applied.parent = document.getElementById('fParent').value.trim();
+    renderTable();
+  });
+  document.getElementById('btnReset').addEventListener('click', function () {
+    document.getElementById('fKeyword').value = '';
+    document.getElementById('fParent').value = '';
+    var d = document.getElementById('fStatus');
+    if (d && d.reset) d.reset();
+    applied = { keyword: '', status: '', parent: '' };
+    sort = null;
+    renderTable();
+  });
+
+/* ---------- 初始 ---------- */
+  renderTable();
+})();
+</script>
+</body>
+</html>

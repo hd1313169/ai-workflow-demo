@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>角色管理</title>
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<style>
+  /* 角色管理頁專屬版面（僅引用 token，不含色值字面值）*/
+
+  /* 頁面標題與內容的間距（原分頁列已移除）*/
+  .area-title + * { margin-top: 24px; }
+
+  .rm-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
+
+  .rm-keyword {
+    display: flex; align-items: center; gap: var(--pad-sm);
+    height: 40px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg-surface);
+  }
+  .rm-keyword svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--color-grey-500); }
+  .rm-keyword input { flex: 1; border: 0; outline: 0; font: inherit; color: var(--color-ink); background: transparent; min-width: 0; }
+  .rm-keyword input::placeholder { color: var(--text-placeholder); }
+
+  .rm-actions { display: flex; justify-content: flex-end; gap: var(--pad-sm); margin: 20px 0 12px; }
+
+  /* 角色表 */
+  .rm-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .rm-table col.c-name   { width: 16%; }
+  .rm-table col.c-scope  { width: 34%; }
+  .rm-table col.c-users  { width: 10%; }
+  .rm-table col.c-edited { width: 16%; }
+  .rm-table col.c-state  { width: 10%; }
+  .rm-table col.c-ops    { width: 14%; }
+  .rm-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--color-grey-100); color: var(--color-ink);
+    font-weight: var(--fw-medium); font-size: var(--fs-sm); line-height: var(--lh-sm);
+    text-align: left; padding: var(--pad-md) var(--pad-sm); white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+  }
+  .rm-table thead th .hcell { display: inline-flex; align-items: center; gap: 4px; }
+  .rm-table thead th .hcell__t { display: inline-flex; flex-direction: column; }
+  .rm-table thead th .hcell__en { font-size: 12px; font-weight: var(--fw-regular); color: var(--color-grey-500); }
+  /* 此表排序圖示為淺灰（ 表頭），覆寫元件庫預設的反白 */
+  .rm-table thead th .sort-ic { color: var(--color-grey-500); }
+  .rm-table thead th .sort-ic:hover { color: var(--head-bg-primary); }
+  .rm-table tbody td {
+    border-top: 1px solid var(--line);
+    padding: var(--pad-md) var(--pad-sm);
+    font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--cell-text);
+    vertical-align: middle;
+  }
+  .rm-table tbody tr:hover td { background: var(--bg-hover-subtle); }
+  .rm-name { font-weight: var(--fw-medium); color: var(--color-ink); }
+  .rm-edited__by { color: var(--text-muted); }
+
+  /* 使用人數標籤（：tint 底 + 同色字；0=error、<20=info、>=20=success）*/
+  .rm-users {
+    display: inline-flex; align-items: center; min-height: 20px;
+    padding: 1px 8px; border-radius: var(--radius-xs);
+    font-size: 12px; line-height: 18px; font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .rm-users--zero { background: var(--tag-bg-error);   color: var(--tag-text-error); }
+  .rm-users--low  { background: var(--tag-bg-info);    color: var(--tag-text-info); }
+  .rm-users--high { background: var(--tag-bg-success); color: var(--tag-text-success); }
+
+  /* 授權功能範圍模組標籤（：outline tag，radius-xs、14/20）
+     顯示邏輯：full＝該模組全部功能 → 色+邊框；partial＝部分功能 → 淡化色、無邊框；none → 不顯示 */
+  .rm-scope { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rm-mod-tag {
+    display: inline-flex; align-items: center; min-height: 24px;
+    padding: 2px 8px; border-radius: var(--radius-xs);
+    font-size: var(--fs-sm); line-height: var(--lh-sm); white-space: nowrap;
+    background: transparent; border: 1px solid transparent;
+  }
+  .rm-mod-tag.is-partial { border-color: transparent; opacity: 0.55; }
+  .rm-scope-empty { color: var(--text-faint); }
+  .rm-mod-tag.m-home     { background: var(--module-home-bg);      color: var(--module-home-text); }
+  .rm-mod-tag.m-customer { background: var(--module-customer-bg);  color: var(--module-customer-text); }
+  .rm-mod-tag.m-marketing{ background: var(--module-marketing-bg); color: var(--module-marketing-text); }
+  .rm-mod-tag.m-report   { background: var(--module-report-bg);    color: var(--module-report-text); }
+  .rm-mod-tag.m-tools    { background: var(--module-tools-bg);     color: var(--module-tools-text); }
+  .rm-mod-tag.is-full.m-home     { border-color: var(--module-home-border); }
+  .rm-mod-tag.is-full.m-customer { border-color: var(--module-customer-border); }
+  .rm-mod-tag.is-full.m-marketing{ border-color: var(--module-marketing-border); }
+  .rm-mod-tag.is-full.m-report   { border-color: var(--module-report-border); }
+  .rm-mod-tag.is-full.m-tools    { border-color: var(--module-tools-border); }
+
+  /* 狀態徽章（：實心圓角膠囊、白字、12/18 medium）*/
+  .rm-state {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 22px; padding: 2px 12px;
+    border-radius: 999px; font-size: 12px; line-height: 18px; font-weight: var(--fw-medium);
+    color: var(--badge-status-text);
+  }
+  .rm-state--on  { background: var(--badge-status-active); }
+  .rm-state--off { background: var(--badge-status-inactive); }
+
+  /* 編輯 Edit：主色描邊鈕（沿用 .btn-outline，字與鉛筆 icon 皆主色藍）*/
+  .rm-edit-btn { padding: 6px 12px; font-size: var(--fs-sm); }
+  .rm-edit-btn fb-icon { width: 16px; height: 16px; }
+
+  .rm-empty { text-align: center; color: var(--text-faint); padding: 40px 12px; }
+
+  /* Modal 內表單 */
+  .rm-form { display: flex; flex-direction: column; gap: 20px; }
+  .rm-field { display: flex; flex-direction: column; gap: var(--gap-2xs); }
+  .rm-field > label { font-family: var(--font-cn); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: var(--fw-medium); color: var(--form-label-text); }
+  .rm-field > label .en { font-weight: var(--fw-regular); color: var(--form-label-note); }
+  .rm-field > label em { color: var(--accent-danger); font-style: normal; }
+  .rm-input {
+    font: inherit; color: var(--color-ink); background: var(--bg-surface);
+    border: 1px solid var(--line); border-radius: var(--radius-md);
+    padding: 9px 12px; width: 100%; outline: 0;
+  }
+  .rm-input:focus { border-color: var(--head-bg-primary); }
+  .rm-input::placeholder { color: var(--text-placeholder); }
+  .rm-field.is-invalid .rm-input { border-color: var(--accent-danger); }
+  .rm-modules-label { font-size: var(--fs-md); font-weight: var(--fw-medium); color: var(--color-ink); }
+  .rm-modules-label + fb-perm-tree { margin-top: -14px; }   /* 縮短標題與權限樹間距 */
+
+  .rm-count { font-size: 13px; color: var(--text-muted); }
+  .rm-count b { color: var(--head-bg-primary); font-weight: var(--fw-medium); }
+  .rm-count i { color: var(--accent-success); font-style: normal; font-weight: var(--fw-medium); }
+  .rm-modal-btns { display: inline-flex; gap: var(--pad-sm); flex: 0 0 auto; }
+
+  @media (max-width: 900px) {
+    .rm-stats { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <!-- ============ 1. 頂部導覽 ============ -->
+  <fb-topnav active="tools"></fb-topnav>
+
+  <main class="page">
+    <!-- ============ 2. 頁面標題 ============ -->
+    <fb-area-title zh="角色管理" en="Role Mgt."></fb-area-title>
+
+<!-- ============ 4. 統計列 ============ -->
+    <div class="rm-stats">
+      <fb-stat-card id="statTotal" icon="fb-user" zh="系統總角色數" en="Total Roles" value="0"></fb-stat-card>
+      <fb-stat-card id="statActive" tone="success" icon="fb-check-circle-filled" zh="啟用中角色" en="Actived Roles" value="0"></fb-stat-card>
+    </div>
+
+    <!-- ============ 5. 篩選 ============ -->
+    <fb-filter-card>
+      <div class="filter__grid cols-3">
+        <div class="field">
+          <label>關鍵字 <span class="en">Keyword</span></label>
+          <div class="rm-keyword">
+            <fb-icon name="fb-search"></fb-icon>
+            <input type="text" id="fKeyword" placeholder="搜尋角色名稱或關鍵字">
+          </div>
+        </div>
+        <div class="field">
+          <label>主功能模組 <span class="en">Module</span></label>
+          <fb-dropdown id="fModule" type="single"><script type="application/json">{"options":["所有主功能模組 (All Modules)","首頁","客戶綜合查詢","業務推廣","報表中心","其他工具"],"value":"所有主功能模組 (All Modules)"}</script></fb-dropdown>
+        </div>
+        <div class="field">
+          <label>狀態 <span class="en">Status</span></label>
+          <fb-dropdown id="fStatus" type="single"><script type="application/json">{"options":["所有狀態 (All Status)","啟用","停用"],"value":"所有狀態 (All Status)"}</script></fb-dropdown>
+        </div>
+      </div>
+      <div class="filter__actions">
+        <button class="btn-text muted" id="btnReset" type="button"><fb-icon name="fb-reset"></fb-icon> 重設 Reset</button>
+        <button class="btn-primary" id="btnSearch" type="button"><fb-icon name="fb-search"></fb-icon> 查詢 Search</button>
+      </div>
+    </fb-filter-card>
+
+    <!-- ============ 6. 動作列 ============ -->
+    <div class="rm-actions">
+      <button class="btn-primary" id="btnAdd" type="button"><fb-icon name="fb-plus"></fb-icon> 新增角色 Add</button>
+      <button class="btn-outline" id="btnExport" type="button"><fb-icon name="fb-export"></fb-icon> 匯出 Export</button>
+    </div>
+
+    <!-- ============ 7. 角色表 ============ -->
+    <div class="table-clip">
+      <div class="table-wrap">
+        <table class="rm-table" id="roleTable"></table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ 8. 角色 Modal（新增／編輯／停用共用）============ -->
+  <fb-modal id="roleModal" heading="新增角色" heading-en="Add New Role">
+    <form class="rm-form" onsubmit="return false">
+      <div class="rm-field" id="fldName">
+        <label>角色名稱 Role Name <em>*</em></label>
+        <input type="text" class="rm-input" id="roleName" placeholder="請輸入角色名稱（如：境外專案交易員）">
+      </div>
+
+      <fb-toggle id="roleActive" variant="card" checked zh="啟用此角色" en="Active Status"
+        desc="停用後已指派此角色的使用者將暫時無法使用相關功能"></fb-toggle>
+
+      <div class="rm-field">
+        <label>權限複製模板 Templete</label>
+        <fb-dropdown id="roleTemplate" type="single"><script type="application/json">{"options":["-- 不複製，依據下方勾選模組載入預設權限 --","系統管理員","主管","業務員"],"value":"-- 不複製，依據下方勾選模組載入預設權限 --"}</script></fb-dropdown>
+      </div>
+
+      <div class="rm-modules-label">角色歸屬主功能模組 Modules</div>
+      <fb-perm-tree id="rolePerm"></fb-perm-tree>
+    </form>
+
+    <div data-modal-footer style="display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%">
+      <span class="rm-count" id="roleCount"></span>
+      <span class="rm-modal-btns">
+        <button class="btn-neutral-outline" type="button" data-modal-cancel>取消 Cancel</button>
+        <button class="btn-primary" type="button" id="roleSave">儲存 Save</button>
+      </span>
+    </div>
+  </fb-modal>
+
+  <fb-toast id="roleToast"></fb-toast>
+
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- 模組顯示中繼（顯示順序）---------- */
+  var MODULE_ORDER = ['home', 'customer', 'marketing', 'report', 'tools'];
+  var MODULE_ZH = { home: '首頁', customer: '客戶綜合查詢', marketing: '業務推廣', report: '報表中心', tools: '其他工具' };
+  var MODULE_KEY_BY_ZH = { '首頁': 'home', '客戶綜合查詢': 'customer', '業務推廣': 'marketing', '報表中心': 'report', '其他工具': 'tools' };
+  var ALL_KEYS = ['home', 'marketing', 'customer', 'report', 'tools'];
+
+  /* ---------- 角色資料（寫死；）---------- */
+  var ROLES = [
+    { name: '系統管理員', active: true, users: 40, date: '2026/02/10', by: '黃俊傑', sel: 'all' },
+    { name: '主管',       active: true, users: 61, date: '2026/02/08', by: '陳柏翰', sel: { home: 'all', customer: 'all', marketing: 'all', report: 'all' } },
+    { name: '業務員',     active: true, users: 130, date: '2026/08/26', by: '黃俊傑', sel: { home: 'all', customer: 'all' } },
+    { name: '交易員',     active: true, users: 17, date: '2026/08/27', by: '張雅婷', sel: { home: 'all', marketing: 'all', report: 'all' } },
+    { name: '一般員工',   active: true, users: 8,  date: '2026/08/28', by: '李美玲', sel: { home: 'all', marketing: 'all' } },
+    { name: '專案實習',   active: false, users: 0, date: '2026/08/29', by: '林宜蓁', sel: { home: ['個人行事曆與行程管理'], marketing: ['活動管理法說會論壇'] } }
+  ];
+  ROLES.forEach(function (r, i) { r._seq = i; });
+  function nextSeq(arr) { return arr.length ? Math.max.apply(null, arr.map(function (x) { return x._seq || 0; })) + 1 : 0; }
+
+  /* 各主模組的功能頁面（對照 fb-perm-tree 內建 PERM_TREE_DATA）*/
+  var MODULE_PAGES = {
+    home:     ['個人行事曆與行程管理', '即時交易庫存彙整'],
+    customer: ['企業客戶綜合查詢', '單一客戶標籤與群組', '商品視角橫向透視'],
+    marketing:['客戶訪談與服務紀錄', '活動管理法說會論壇', '顧問使用紀錄研究資源'],
+    report:   ['報表中心業績與佔比', '業務窗口收益統計與設定'],
+    tools:    ['組織權限管轄與功能管理', '代理人設定與角色權限']
+  };
+  var ALL_CAPS = ['read', 'edit', 'delete', 'export'];
+
+  /* 某角色在某主模組的授權程度： 'full'（全部功能）｜ 'partial'（部分）｜ 'none' */
+  function moduleState(role, key) {
+    var s = role.sel;
+    if (s === 'all') return 'full';
+    var mv = s && s[key];
+    if (mv == null) return 'none';
+    if (mv === 'all') return 'full';
+    var pages = MODULE_PAGES[key] || [];
+    if (Array.isArray(mv)) {
+      // 陣列＝所列頁面（含全部 caps）
+      return mv.length >= pages.length ? 'full' : 'partial';
+    }
+    // 物件 { pageZh: 'all' | [caps] }
+    var covered = pages.every(function (p) {
+      var c = mv[p];
+      return c === 'all' || (Array.isArray(c) && c.length === ALL_CAPS.length);
+    });
+    return covered ? 'full' : 'partial';
+  }
+
+  /* sel -> 有任何授權（full 或 partial）的模組 key 陣列（供篩選用）*/
+  function roleModuleKeys(role) {
+    if (role.sel === 'all') return ALL_KEYS.slice();
+    return Object.keys(role.sel || {});
+  }
+
+  /* ---------- DOM ---------- */
+  var table = document.getElementById('roleTable');
+  var statTotal = document.getElementById('statTotal');
+  var statActive = document.getElementById('statActive');
+  var modal = document.getElementById('roleModal');
+  var perm = document.getElementById('rolePerm');
+  var toast = document.getElementById('roleToast');
+  var nameInput = document.getElementById('roleName');
+  var fldName = document.getElementById('fldName');
+  var activeToggle = document.getElementById('roleActive');
+  var saveBtn = document.getElementById('roleSave');
+  var countEl = document.getElementById('roleCount');
+  var roleTemplate = document.getElementById('roleTemplate');
+
+  /* ---------- 篩選（僅「查詢」時套用）---------- */
+  var applied = { keyword: '', module: '', status: '' };
+
+  function passesFilter(role) {
+    if (applied.keyword && role.name.indexOf(applied.keyword) === -1) return false;
+    if (applied.module) {
+      var k = MODULE_KEY_BY_ZH[applied.module];
+      if (k && roleModuleKeys(role).indexOf(k) === -1) return false;
+    }
+    if (applied.status === '啟用' && !role.active) return false;
+    if (applied.status === '停用' && role.active) return false;
+    return true;
+  }
+
+  /* ---------- 排序 ---------- */
+  var sort = null;   // { col: 'name'|'scope'|'users'|'edited', dir: 'asc'|'desc' }
+  var sortVal = {
+    name: function (r) { return r.name; },
+    scope: function (r) { return roleModuleKeys(r).length; },
+    users: function (r) { return r.users; },
+    edited: function (r) { return r.date; },
+    state: function (r) { return r.active ? 0 : 1; }
+  };
+
+  function sortedRows(rows) {
+    return fbSortRows(rows, { sort: sort, sortVal: sortVal });
+  }
+
+  /* ---------- 統計（永遠依完整 ROLES）---------- */
+  function renderStats() {
+    statTotal.value = ROLES.length;
+    statActive.value = ROLES.filter(function (r) { return r.active; }).length;
+  }
+
+  /* ---------- 角色表 ---------- */
+  var HEADS = [
+    { key: 'name', zh: '角色名稱', en: 'Role Name', sortable: true },
+    { key: 'scope', zh: '授權功能範圍', en: 'Scope', sortable: true },
+    { key: 'users', zh: '使用人數', en: 'Number', sortable: true },
+    { key: 'edited', zh: '最後編輯', en: 'Last Edit', sortable: true },
+    { key: 'state', zh: '狀態', en: 'Status', sortable: false },
+    { key: 'ops', zh: '操作', en: 'Action', sortable: false }
+  ];
+
+  function renderTable() {
+    var rows = sortedRows(ROLES.filter(passesFilter));
+
+    var html = '<colgroup>' +
+      '<col class="c-name"><col class="c-scope"><col class="c-users">' +
+      '<col class="c-edited"><col class="c-state"><col class="c-ops"></colgroup>';
+
+    html += '<thead><tr>' + HEADS.map(function (h) {
+      var s = h.sortable
+        ? ' <span class="sort-ic" data-col="' + h.key + '" role="button" title="排序">' +
+          FbIcon.sort(sort && sort.col === h.key ? sort.dir : null) + '</span>'
+        : '';
+      return '<th><span class="hcell"><span class="hcell__t">' + h.zh +
+        '<span class="hcell__en">' + h.en + '</span></span>' + s + '</span></th>';
+    }).join('') + '</tr></thead>';
+
+    if (!rows.length) {
+      html += '<tbody><tr><td colspan="6" class="rm-empty">查無符合條件的角色</td></tr></tbody>';
+      table.innerHTML = html;
+      bindSort();
+      return;
+    }
+
+    html += '<tbody>' + rows.map(function (role) {
+      var idx = ROLES.indexOf(role);
+      var tags = MODULE_ORDER.map(function (k) {
+        var st = moduleState(role, k);
+        if (st === 'none') return '';                       // 無該模組功能：不顯示
+        var cls = st === 'full' ? ' is-full' : ' is-partial';
+        return '<span class="rm-mod-tag m-' + k + cls + '">' + MODULE_ZH[k] + '</span>';
+      }).join('');
+      if (!tags) tags = '<span class="rm-scope-empty">—</span>';
+
+      var uCls = role.users === 0 ? 'rm-users--zero' : role.users < 20 ? 'rm-users--low' : 'rm-users--high';
+
+      return '<tr>' +
+        '<td><span class="rm-name">' + role.name + '</span></td>' +
+        '<td><span class="rm-scope">' + tags + '</span></td>' +
+        '<td><span class="rm-users ' + uCls + '">' + role.users + '人</span></td>' +
+        '<td>' + role.date + ' <span class="rm-edited__by">' + role.by + '</span></td>' +
+        '<td><span class="rm-state rm-state--' + (role.active ? 'on' : 'off') + '">' +
+          (role.active ? '啟用' : '停用') + '</span></td>' +
+        '<td><button class="btn-outline rm-edit-btn" type="button" data-edit="' + idx + '">' +
+          '<fb-icon name="fb-edit"></fb-icon> 編輯 Edit</button></td>' +
+        '</tr>';
+    }).join('') + '</tbody>';
+
+    table.innerHTML = html;
+    bindSort();
+    table.querySelectorAll('[data-edit]').forEach(function (b) {
+      b.addEventListener('click', function () { openEdit(+b.getAttribute('data-edit')); });
+    });
+  }
+
+  function bindSort() {
+    table.querySelectorAll('.sort-ic[data-col]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var k = el.getAttribute('data-col');
+        if (!sort || sort.col !== k) sort = { col: k, dir: 'asc' };
+        else if (sort.dir === 'asc') sort.dir = 'desc';
+        else sort = null;
+        renderTable();
+      });
+    });
+  }
+
+  /* ---------- Modal：新增 / 編輯 / 停用 ---------- */
+  var editingIndex = null;
+  var NO_TEMPLATE = '-- 不複製，依據下方勾選模組載入預設權限 --';
+
+  function resetTemplateDropdown() {
+    roleTemplate.options = [NO_TEMPLATE].concat(ROLES.map(function (r) { return r.name; }));
+    roleTemplate.value = NO_TEMPLATE;
+    roleTemplate._build();
+  }
+
+  roleTemplate.addEventListener('change', function (e) {
+    var v = e.detail.value;
+    if (v === NO_TEMPLATE) {
+      perm.clearAll();
+    } else {
+      var role = ROLES.filter(function (r) { return r.name === v; })[0];
+      if (role) perm.setSelection(role.sel);
+    }
+    updateCount(perm._counts());
+  });
+
+  function updateCount(d) {
+    d = d || { checked: 0, total: 48, exportChecked: 0 };
+    countEl.innerHTML = '已勾選 <b>' + d.checked + '/' + d.total +
+      '</b> 項功能頁面，其中包含 <i>' + d.exportChecked + '</i> 項資料匯出特權';
+  }
+
+  function refreshSave() {
+    saveBtn.disabled = nameInput.value.trim() === '';
+  }
+
+  function openAdd() {
+    editingIndex = null;
+    modal.setHeading('新增角色', 'Add New Role');
+    nameInput.value = '';
+    fldName.classList.remove('is-invalid');
+    activeToggle.checked = true;
+    resetTemplateDropdown();
+    perm.clearAll();
+    updateCount(perm._counts());
+    refreshSave();
+    modal.open();
+    setTimeout(function () { nameInput.focus(); }, 0);
+  }
+
+  function openEdit(i) {
+    editingIndex = i;
+    var role = ROLES[i];
+    modal.setHeading('編輯角色', 'Edit Role');
+    nameInput.value = role.name;
+    fldName.classList.remove('is-invalid');
+    activeToggle.checked = role.active;
+    resetTemplateDropdown();
+    perm.setSelection(role.sel);
+    updateCount(perm._counts());
+    refreshSave();
+    modal.open();
+  }
+
+  function save() {
+    var name = nameInput.value.trim();
+    if (!name) {
+      fldName.classList.add('is-invalid');
+      nameInput.focus();
+      return;
+    }
+    var sel = perm.getSelection();
+    var isActive = activeToggle.checked;
+
+    if (editingIndex === null) {
+      ROLES.push({ name: name, active: isActive, users: 0, date: todayStr(), by: '我', sel: sel, _seq: nextSeq(ROLES) });
+      finish('角色已新增');
+    } else {
+      var role = ROLES[editingIndex];
+      var wasActive = role.active;
+      role.name = name;
+      role.active = isActive;
+      role.sel = sel;
+      role.date = todayStr();
+      role.by = '我';
+      finish(wasActive && !isActive ? '角色已停用' : '角色已更新');
+    }
+  }
+
+  function finish(msg) {
+    modal.close();
+    renderStats();
+    renderTable();
+    toast.show(msg);
+  }
+
+  function todayStr() {
+    var d = new Date();
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate());
+  }
+
+  /* ---------- 事件綁定 ---------- */
+  nameInput.addEventListener('input', function () {
+    if (nameInput.value.trim()) fldName.classList.remove('is-invalid');
+    refreshSave();
+  });
+  perm.addEventListener('perm-change', function (e) { updateCount(e.detail); });
+  saveBtn.addEventListener('click', save);
+  document.getElementById('btnAdd').addEventListener('click', openAdd);
+
+  /* 匯出：純示意，不改變表格或勾選狀態 */
+  document.getElementById('btnExport').addEventListener('click', function () {
+    toast.show('（原型）匯出功能為示意');
+  });
+
+  /* 篩選 */
+  document.getElementById('btnSearch').addEventListener('click', function () {
+    applied.keyword = document.getElementById('fKeyword').value.trim();
+    var mv = document.getElementById('fModule').value;
+    var sv = document.getElementById('fStatus').value;
+    applied.module = /所有主功能模組/.test(mv) ? '' : mv;
+    applied.status = /所有狀態/.test(sv) ? '' : sv;
+    renderTable();
+  });
+  document.getElementById('btnReset').addEventListener('click', function () {
+    document.getElementById('fKeyword').value = '';
+    document.querySelectorAll('fb-dropdown').forEach(function (d) { d.reset && d.reset(); });
+    applied = { keyword: '', module: '', status: '' };
+    sort = null;
+    renderTable();
+  });
+
+/* ---------- 初始 ---------- */
+  renderStats();
+  renderTable();
+  updateCount(perm._counts());
+})();
+</script>
+</body>
+</html>

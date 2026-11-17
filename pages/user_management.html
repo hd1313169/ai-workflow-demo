@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>使用者管理</title>
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<style>
+  /* 使用者管理頁專屬版面（僅引用 token，不含色值字面值）*/
+
+  /* 頁面標題與內容的間距（原分頁列已移除）*/
+  .area-title + * { margin-top: 24px; }
+
+  .um-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0; }
+
+  .um-keyword {
+    display: flex; align-items: center; gap: var(--pad-sm);
+    height: 40px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg-surface);
+  }
+  .um-keyword svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--color-grey-500); }
+  .um-keyword input { flex: 1; border: 0; outline: 0; font: inherit; color: var(--color-ink); background: transparent; min-width: 0; }
+  .um-keyword input::placeholder { color: var(--text-placeholder); }
+
+  .um-actions { display: flex; justify-content: flex-end; gap: var(--pad-sm); margin: 20px 0 12px; }
+
+  /* 使用者表：欄寬改為固定 px，欄位多時由 .table-wrap 產生橫向捲動，不壓縮既有欄位 */
+  .um-table { width: 100%; min-width: 1360px; border-collapse: collapse; table-layout: fixed; }
+  .um-table col.c-user   { width: 190px; }
+  .um-table col.c-dept   { width: 160px; }
+  .um-table col.c-roles  { width: 160px; }
+  .um-table col.c-scope  { width: 260px; }
+  .um-table col.c-agent  { width: 150px; }
+  .um-table col.c-login  { width: 150px; }
+  .um-table col.c-edited { width: 150px; }
+  .um-table col.c-state  { width: 90px; }
+  .um-table col.c-ops    { width: 150px; }
+  .um-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--color-grey-100); color: var(--color-ink);
+    font-weight: var(--fw-medium); font-size: var(--fs-sm); line-height: var(--lh-sm);
+    text-align: left; padding: var(--pad-md) var(--pad-sm); white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+  }
+  .um-table thead th .hcell { display: inline-flex; align-items: center; gap: 4px; }
+  .um-table thead th .hcell__t { display: inline-flex; flex-direction: column; }
+  .um-table thead th .hcell__en { font-size: 12px; font-weight: var(--fw-regular); color: var(--color-grey-500); }
+  .um-table thead th .sort-ic { color: var(--color-grey-500); cursor: pointer; }
+  .um-table thead th .sort-ic:hover { color: var(--head-bg-primary); }
+  .um-table tbody td {
+    border-top: 1px solid var(--line);
+    padding: var(--pad-md) var(--pad-sm);
+    font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--cell-text);
+    vertical-align: middle;
+  }
+  .um-table tbody tr:hover td { background: var(--bg-hover-subtle); }
+
+  /* 兩行 cell（員編/姓名、部門/職稱）*/
+  .um-2line { display: flex; flex-direction: column; gap: 2px; }
+  .um-2line__main { color: var(--color-ink); }
+  .um-2line__sub  { color: var(--text-muted); font-size: 12px; line-height: 18px; }
+
+  /* 已指派功能角色：basic tag（completed 灰系，）*/
+  .um-roles { display: flex; flex-wrap: wrap; gap: 6px; }
+  .um-role-tag {
+    display: inline-flex; align-items: center; min-height: 24px;
+    padding: 2px 8px; border-radius: var(--radius-xs);
+    font-size: var(--fs-sm); line-height: var(--lh-sm); white-space: nowrap;
+    background: var(--module-tools-bg); color: var(--module-tools-text);
+    border: 1px solid var(--status-border-completed);
+  }
+  .um-roles-empty { color: var(--text-faint); }
+
+  /* 資料管轄範圍：多枚灰階無色 outline 標籤（.org-tag，來自 components.css，統一不加色彩區分）*/
+  .um-scope { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* 代理狀態：狀態圓點 + 文字*/
+  .um-agent { display: inline-flex; flex-direction: column; gap: 2px; }
+  .um-agent__row { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .um-agent__dot { width: 8px; height: 8px; border-radius: 999px; background: currentColor; flex: 0 0 auto; }
+  .um-agent__sub { color: var(--text-muted); font-size: 12px; line-height: 18px; padding-left: 14px; }
+  /* 代理狀態用色：正常出勤＝綠、代理中＝橘、離職停用＝灰 */
+  /* 圓點與文字同色，狀態色由 .a-* 提供 */
+  .um-agent.a-normal { color: var(--color-green-500); }
+  .um-agent.a-acting { color: var(--color-orange-500); }
+  .um-agent.a-left   { color: var(--color-grey-450); }
+
+  /* 最後編輯 */
+  .um-edited__by { color: var(--text-muted); }
+
+  /* 狀態徽章（實心圓角膠囊、白字，對照角色管理 ）*/
+  .um-state {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 22px; padding: 2px 12px;
+    border-radius: 999px; font-size: 12px; line-height: 18px; font-weight: var(--fw-medium);
+    color: var(--badge-status-text);
+  }
+  .um-state--on  { background: var(--badge-status-active); }
+  .um-state--off { background: var(--badge-status-inactive); }
+
+  .um-op-btn { padding: 6px 12px; font-size: var(--fs-sm); white-space: nowrap; }
+  .um-op-btn fb-icon { width: 16px; height: 16px; }
+
+  .um-empty { text-align: center; color: var(--text-faint); padding: 40px 12px; }
+
+  /* ---- Modal 內表單 ---- */
+  .um-form { display: flex; flex-direction: column; gap: 20px; }
+  /* 區塊底為淺灰，內部欄位維持白底 */
+  .um-fieldset {
+    border: 1px solid var(--line); border-radius: var(--radius-md);
+    background: var(--color-grey-100);
+    padding: 16px; display: flex; flex-direction: column; gap: 16px;
+  }
+  .um-fieldset__legend { font-size: var(--fs-md); font-weight: var(--fw-medium); color: var(--color-ink); }
+  .um-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* 帳號啟用狀態區塊 */
+  .um-status-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .um-status-desc { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--text-muted); }
+  .um-status-row .um-state { flex: 0 0 auto; }
+
+  /* 稽核資訊區塊 */
+  .um-audit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+  .um-audit-grid > div { display: flex; gap: 8px; font-size: var(--fs-sm); }
+  .um-audit__k { color: var(--text-muted); }
+  .um-audit__v { color: var(--color-ink); }
+  .um-field { display: flex; flex-direction: column; gap: var(--gap-2xs); min-width: 0; }
+  .um-field > label { font-family: var(--font-cn); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: var(--fw-medium); color: var(--form-label-text); }
+  .um-field > label .en { font-weight: var(--fw-regular); color: var(--form-label-note); }
+  .um-field > label em { color: var(--accent-danger); font-style: normal; }
+  .um-input {
+    font: inherit; color: var(--color-ink); background: var(--bg-surface);
+    border: 1px solid var(--line); border-radius: var(--radius-md);
+    padding: 9px 12px; width: 100%; outline: 0;
+  }
+  .um-input:focus { border-color: var(--head-bg-primary); }
+  .um-input::placeholder { color: var(--text-placeholder); }
+  .um-input[readonly] { background: var(--color-grey-100); color: var(--text-muted); }
+  .um-field.is-invalid .um-input { border-color: var(--accent-danger); }
+
+  .um-role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 16px; }
+  .um-role-cell {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid var(--line); border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    padding: 9px 12px; font-size: var(--fs-sm); color: var(--color-ink);
+  }
+  .um-role-cell input { width: 16px; height: 16px; flex: 0 0 auto; accent-color: var(--head-bg-primary); }
+  .um-role-cell.is-checked { border-color: var(--head-bg-primary); background: var(--overlay-primary-06); }
+
+
+  /* 停用確認 */
+  .um-confirm { display: flex; flex-direction: column; gap: 8px; }
+  .um-confirm__label { font-size: 13px; color: var(--text-general); }
+  .um-confirm__label em { color: var(--accent-danger); font-style: normal; }
+  .um-confirm__desc { font-size: 13px; color: var(--text-muted); }
+  .um-confirm__desc b { color: var(--color-ink); font-weight: var(--fw-medium); }
+
+  /* 停用確認 Modal：窄卡、高度由內容決定（非固定 80vh）*/
+  #disableModal .modal__panel {
+    width: auto; min-width: 0; max-width: 600px;
+    height: auto; min-height: 0; max-height: 80vh;
+  }
+
+  @media (max-width: 900px) {
+    .um-stats { grid-template-columns: 1fr; }
+    .um-grid2 { grid-template-columns: 1fr; }
+    .um-role-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+  <!-- ============ 1. 頂部導覽 ============ -->
+  <fb-topnav active="tools"></fb-topnav>
+
+  <main class="page">
+    <!-- ============ 2. 頁面標題 ============ -->
+    <fb-area-title zh="使用者管理" en="User Mgt."></fb-area-title>
+
+<!-- ============ 4. 統計列 ============ -->
+    <div class="um-stats">
+      <fb-stat-card id="statTotal" icon="fb-user" zh="總使用者人數" en="Total Users" value="0"></fb-stat-card>
+      <fb-stat-card id="statActive" tone="success" icon="fb-check-circle-filled" zh="正常啟用中帳號" en="Active Users" value="0"></fb-stat-card>
+      <fb-stat-card id="statActing" tone="warning" icon="fb-refresh-cw" zh="目前代理中人數" en="Delegating Users" value="0"></fb-stat-card>
+    </div>
+
+    <!-- ============ 5. 篩選 ============ -->
+    <fb-filter-card>
+      <div class="filter__grid">
+        <div class="field">
+          <label>關鍵字 <span class="en">Keyword</span></label>
+          <div class="um-keyword">
+            <fb-icon name="fb-search"></fb-icon>
+            <input type="text" id="fKeyword" placeholder="搜尋姓名、員編或 EIP 帳號">
+          </div>
+        </div>
+        <div class="field">
+          <label>角色 <span class="en">Role</span></label>
+          <fb-dropdown id="fRole" type="single"><script type="application/json">{"options":["所有角色 (All Roles)","系統管理員","主管","業務員","交易員","一般員工","專案實習"],"value":"所有角色 (All Roles)"}</script></fb-dropdown>
+        </div>
+        <div class="field">
+          <label>資料管轄範圍 <span class="en">Scope</span></label>
+          <fb-dropdown id="fScope" type="single"><script type="application/json">{"options":["所有資料管轄範圍 (All Scopes)"],"value":"所有資料管轄範圍 (All Scopes)"}</script></fb-dropdown>
+        </div>
+        <div class="field">
+          <label>狀態 <span class="en">Status</span></label>
+          <fb-dropdown id="fStatus" type="single"><script type="application/json">{"options":["所有狀態 (All Status)","啟用","停用"],"value":"所有狀態 (All Status)"}</script></fb-dropdown>
+        </div>
+      </div>
+      <div class="filter__actions">
+        <button class="btn-text muted" id="btnReset" type="button"><fb-icon name="fb-reset"></fb-icon> 重設 Reset</button>
+        <button class="btn-primary" id="btnSearch" type="button"><fb-icon name="fb-search"></fb-icon> 查詢 Search</button>
+      </div>
+    </fb-filter-card>
+
+    <!-- ============ 6. 動作列 ============ -->
+    <div class="um-actions">
+      <button class="btn-primary" id="btnAdd" type="button"><fb-icon name="fb-plus"></fb-icon> 新增使用者 Add</button>
+      <button class="btn-outline" id="btnExport" type="button"><fb-icon name="fb-export"></fb-icon> 匯出 Export</button>
+    </div>
+
+    <!-- ============ 7. 使用者表 ============ -->
+    <div class="table-clip">
+      <div class="table-wrap">
+        <table class="um-table" id="userTable"></table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ 8. 使用者 Modal（新增／編輯／檢視共用）============ -->
+  <fb-modal id="userModal" heading="新增使用者帳號" heading-en="Add User Account">
+    <form class="um-form" onsubmit="return false">
+      <div class="um-fieldset">
+        <div class="um-fieldset__legend">基本與 AD 帳號資料 Basic &amp; AD Account Info</div>
+        <div class="um-grid2">
+          <div class="um-field" data-req="emp">
+            <label>員工編號 Emp. ID <em class="um-req-basic">*</em></label>
+            <input type="text" class="um-input" id="fEmp" placeholder="請輸入六碼員工編號">
+          </div>
+          <div class="um-field" data-req="name">
+            <label>姓名 Name <em class="um-req-basic">*</em></label>
+            <input type="text" class="um-input" id="fName" placeholder="請輸入姓名">
+          </div>
+          <div class="um-field" data-req="eip">
+            <label>EIP 企業帳號 EIP Account <em class="um-req-basic">*</em></label>
+            <input type="text" class="um-input" id="fEip" placeholder="請輸入 EIP 帳號">
+          </div>
+          <div class="um-field" data-req="email">
+            <label>電子郵件 E-mail <em class="um-req-basic">*</em></label>
+            <input type="text" class="um-input" id="fEmail" placeholder="請輸入電子郵件">
+          </div>
+          <div class="um-field" data-req="dept">
+            <label>所屬部門 Dpt. <em class="um-req-basic">*</em></label>
+            <fb-dropdown id="fDept" type="single"><script type="application/json">{"options":["請選擇所屬部門","境內業務一部","境外業務一部","境外業務二部","法人交易桌","資訊處專案組"],"value":"請選擇所屬部門"}</script></fb-dropdown>
+          </div>
+          <div class="um-field" data-req="title">
+            <label>職稱 Title <em class="um-req-basic">*</em></label>
+            <fb-dropdown id="fTitle" type="single"><script type="application/json">{"options":["請選擇職稱","資深業務員","業務員","業務主管","資深交易員","實習生"],"value":"請選擇職稱"}</script></fb-dropdown>
+          </div>
+        </div>
+      </div>
+
+      <div class="um-fieldset">
+        <div class="um-fieldset__legend">指派功能角色 Multi-Role Assignment（可多選）</div>
+        <div class="um-role-grid" id="roleGrid"></div>
+      </div>
+
+      <div class="um-field" data-req="scope">
+        <label>資料管轄範圍 Data Scope Jurisdiction <em>*</em></label>
+        <fb-org-tree-select id="fScopeSel" placeholder="請選擇 (可多選)"></fb-org-tree-select>
+      </div>
+
+      <div class="um-fieldset" id="umStatusFs">
+        <div class="um-status-row">
+          <div>
+            <div class="um-fieldset__legend">停用此使用者帳號 Active Status</div>
+            <p class="um-status-desc">停用後該使用者將無法登入 CRM 系統</p>
+          </div>
+          <button class="btn-danger-outline um-op-btn" type="button" id="btnDisable" hidden>停用此帳號 Disable</button>
+          <span class="um-state um-state--off" id="umStatusPill" hidden>帳號已停用</span>
+        </div>
+      </div>
+
+      <div class="um-fieldset" id="umAuditFs" hidden>
+        <div class="um-fieldset__legend">資安稽核與異動軌跡 Audit Metadata</div>
+        <div class="um-audit-grid">
+          <div><span class="um-audit__k">創建日期</span><span class="um-audit__v" id="auCreated">—</span></div>
+          <div><span class="um-audit__k">創建者</span><span class="um-audit__v" id="auCreatedBy">—</span></div>
+          <div><span class="um-audit__k">最後編輯</span><span class="um-audit__v" id="auEdited">—</span></div>
+          <div><span class="um-audit__k">編輯者</span><span class="um-audit__v" id="auEditedBy">—</span></div>
+        </div>
+      </div>
+    </form>
+
+    <div data-modal-footer style="display:flex;align-items:center;justify-content:flex-end;gap:8px;width:100%">
+      <button class="btn-neutral-outline" type="button" data-modal-cancel id="userCancel">取消 Cancel</button>
+      <button class="btn-primary" type="button" id="userSave">儲存 Save</button>
+    </div>
+  </fb-modal>
+
+  <!-- ============ 9. 停用使用者帳號 Modal ============ -->
+  <fb-modal id="disableModal" heading="停用使用者帳號" heading-en="Disable User Account">
+    <div class="um-confirm">
+      <div class="um-confirm__label">請確認是否要停用帳號 <em>*</em></div>
+      <div class="um-confirm__desc" id="disableDesc"></div>
+      <input type="text" class="um-input um-confirm-input" id="disableInput" placeholder="請輸入">
+    </div>
+    <div data-modal-footer style="display:flex;align-items:center;justify-content:flex-end;gap:8px;width:100%">
+      <button class="btn-neutral-outline" type="button" data-modal-cancel>取消 Cancel</button>
+      <button class="btn-danger-outline" type="button" id="disableConfirm" disabled>停用此帳號 Disable this Account</button>
+    </div>
+  </fb-modal>
+
+  <fb-toast id="userToast"></fb-toast>
+
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- 中繼 ---------- */
+  var ROLE_NAMES = ['系統管理員', '主管', '業務員', '交易員', '一般員工', '專案實習'];
+
+  /* 資料管轄範圍：本頁自建的寫死組織樹（部 → 科兩層），獨立於「組織管理」頁資料。
+     值採 key 陣列；父節點下全部子節點皆選取時僅存父節點 key（見 design.md 決策 2）。*/
+  var ORG_TREE = [
+    { key: 'in_dept', zh: '境內業務部', children: [
+      { key: 'in_trade', zh: '境內交易科' },
+      { key: 'in_biz1', zh: '境內業務一科' },
+      { key: 'in_biz2', zh: '境內業務二科' },
+      { key: 'in_biz3', zh: '境內業務三科' }
+    ]},
+    { key: 'ex_dept', zh: '境外業務部', children: [
+      { key: 'ex_trade1', zh: '境外交易一科' },
+      { key: 'ex_biz1', zh: '境外業務一科' },
+      { key: 'ex_biz2', zh: '境外業務二科' },
+      { key: 'ex_biz3', zh: '境外業務三科' }
+    ]},
+    { key: 'it_dept', zh: '技術部', children: [
+      { key: 'it_info', zh: '資訊科' },
+      { key: 'it_hw', zh: '硬體科' }
+    ]},
+    { key: 'fin_dept', zh: '財務部', children: [
+      { key: 'fin_acct', zh: '會計科' },
+      { key: 'fin_cash', zh: '出納科' }
+    ]}
+  ];
+  function orgNodeLabel(key) {
+    for (var i = 0; i < ORG_TREE.length; i++) {
+      var p = ORG_TREE[i];
+      if (p.key === key) return p.zh;
+      var kids = p.children || [];
+      for (var j = 0; j < kids.length; j++) if (kids[j].key === key) return kids[j].zh;
+    }
+    return key;
+  }
+  /* 篩選下拉選項：僅列最小階層（科）單位，與清單欄／Modal 觸發欄位的顯示規則一致 */
+  function flattenOrgTree() {
+    var out = [];
+    ORG_TREE.forEach(function (p) {
+      var kids = p.children || [];
+      if (kids.length) kids.forEach(function (c) { out.push(c.zh); });
+      else out.push(p.zh);
+    });
+    return out;
+  }
+  /* 資料管轄範圍顯示標籤：一律展開為最小階層（葉節點）名稱；
+     選到整個部門（父節點 key）時展開為其下所有科別，而非顯示部門名稱 */
+  function scopeLabels(u) {
+    var out = [];
+    u.scope.forEach(function (key) {
+      var p = ORG_TREE.filter(function (x) { return x.key === key; })[0];
+      if (p) {
+        var kids = p.children || [];
+        if (kids.length) kids.forEach(function (c) { out.push(c.zh); });
+        else out.push(p.zh);
+      } else {
+        out.push(orgNodeLabel(key));
+      }
+    });
+    return out;
+  }
+
+  var AGENT_ZH = { normal: '正常出勤', acting: '代理中', left: '離職停用' };
+
+  var DEPT_PLACEHOLDER = '請選擇所屬部門';
+  var TITLE_PLACEHOLDER = '請選擇職稱';
+
+  /* 新增使用者：員工編號輸入 6 碼數字時，模擬 AD/HR 查詢帶出固定假資料 */
+  var EMP_AUTOFILL_MOCK = { name: '陳彥廷', eip: 'yanting.chen', email: 'yanting.chen@example.com', dept: '境內業務一部', title: '業務員' };
+
+  /* ---------- 使用者資料（寫死；涵蓋每種資料管轄範圍組合 × agent × 啟用/停用）---------- */
+  var USERS = [
+    { emp: '912214', name: '陳美玲', email: 'meiling.chen@example.com', dept: '境內業務一部', title: '資深業務員', roles: ['業務員'], scope: ['in_biz1'], agent: 'normal', agentBy: '', lastLogin: '2026/09/16 09:12', created: '2024/03/12', createdBy: '系統建立 (System Init)', date: '2026/02/10', by: '黃俊傑', active: true },
+    { emp: '699614', name: '林志偉', email: 'zhiwei.lin@example.com', dept: '境外業務一部', title: '業務員', roles: ['業務員'], scope: ['ex_biz1'], agent: 'normal', agentBy: '', lastLogin: '2026/09/15 18:47', created: '2024/06/01', createdBy: '管理員', date: '2026/02/08', by: '陳柏翰', active: true },
+    { emp: '536930', name: '王淑芬', email: 'shufen.wang@example.com', dept: '境外業務二部', title: '業務主管', roles: ['主管', '業務員'], scope: ['ex_biz1', 'ex_biz2'], agent: 'normal', agentBy: '', lastLogin: '2026/09/16 08:30', created: '2023/11/20', createdBy: '管理員', date: '2026/08/26', by: '黃俊傑', active: true },
+    { emp: '308391', name: '張家豪', email: 'jiahao.zhang@example.com', dept: '法人交易桌', title: '資深交易員', roles: ['交易員', '一般員工'], scope: ['in_trade', 'ex_trade1', 'it_info'], agent: 'acting', agentBy: '林志偉', lastLogin: '2026/09/14 21:05', created: '2024/01/08', createdBy: '系統建立 (System Init)', date: '2026/08/27', by: '張雅婷', active: true },
+    { emp: '878088', name: '李雅婷', email: 'yating.li@example.com', dept: '資訊處專案組', title: '實習生', roles: ['專案實習'], scope: ['it_hw'], agent: 'acting', agentBy: '王淑芬', lastLogin: '2026/09/16 10:02', created: '2025/07/15', createdBy: '管理員', date: '2026/08/28', by: '李美玲', active: true },
+    { emp: '021659', name: '郭國維', email: 'guowei.guo@example.com', dept: '境內業務一部', title: '資深業務員', roles: ['業務員'], scope: ['in_biz1'], agent: 'normal', agentBy: '', lastLogin: '2026/09/16 09:40', created: '2024/03/12', createdBy: '系統建立 (System Init)', date: '2026/02/10', by: '黃俊傑', active: true },
+    { emp: '641333', name: '廖瑞琪', email: 'ruiqi.liao@example.com', dept: '境外業務一部', title: '業務員', roles: ['業務員'], scope: ['ex_biz1'], agent: 'normal', agentBy: '', lastLogin: '2026/09/13 14:18', created: '2024/06/01', createdBy: '管理員', date: '2026/02/08', by: '陳柏翰', active: true },
+    { emp: '286014', name: '羅彥妤', email: 'yanyu.luo@example.com', dept: '境外業務二部', title: '業務主管', roles: ['主管', '業務員'], scope: ['ex_dept'], agent: 'normal', agentBy: '', lastLogin: '2026/09/16 07:55', created: '2023/11/20', createdBy: '管理員', date: '2026/08/26', by: '黃俊傑', active: true },
+    { emp: '037229', name: '徐雅秀', email: 'yaxiu.xu@example.com', dept: '法人交易桌', title: '資深交易員', roles: ['交易員', '一般員工'], scope: ['in_trade', 'ex_trade1', 'it_info', 'fin_acct'], agent: 'acting', agentBy: '林志偉', lastLogin: '2026/09/15 22:31', created: '2024/01/08', createdBy: '系統建立 (System Init)', date: '2026/08/27', by: '張雅婷', active: true },
+    { emp: '322481', name: '邱文怡', email: 'wenyi.qiu@example.com', dept: '資訊處專案組', title: '實習生', roles: ['專案實習'], scope: ['fin_cash'], agent: 'acting', agentBy: '李美玲', lastLogin: '2026/09/16 11:20', created: '2025/07/15', createdBy: '管理員', date: '2026/08/28', by: '李美玲', active: true },
+    { emp: '126540', name: '黃建宏', email: 'jianhong.huang@example.com', dept: '資訊處專案組', title: '資深業務員', roles: [], scope: ['it_hw'], agent: 'left', agentBy: '', lastLogin: '2026/03/02 10:05', created: '2023/05/30', createdBy: '系統建立 (System Init)', date: '2026/08/29', by: '林宜蓁', active: false },
+    { emp: '039555', name: '楊宏雅', email: 'hongya.yang@example.com', dept: '資訊處專案組', title: '資深業務員', roles: [], scope: ['in_dept', 'ex_dept'], agent: 'left', agentBy: '', lastLogin: '2026/02/18 16:42', created: '2023/05/30', createdBy: '系統建立 (System Init)', date: '2026/08/29', by: '林宜蓁', active: false }
+  ];
+  USERS.forEach(function (u, i) { u._seq = i; });
+  function nextSeq(arr) { return arr.length ? Math.max.apply(null, arr.map(function (x) { return x._seq || 0; })) + 1 : 0; }
+
+  function eipOf(u) { return u.email.split('@')[0]; }
+
+  /* ---------- DOM ---------- */
+  var table = document.getElementById('userTable');
+  var statTotal = document.getElementById('statTotal');
+  var statActive = document.getElementById('statActive');
+  var statActing = document.getElementById('statActing');
+
+  var modal = document.getElementById('userModal');
+  var roleGrid = document.getElementById('roleGrid');
+  var fEmp = document.getElementById('fEmp');
+  var fName = document.getElementById('fName');
+  var fEip = document.getElementById('fEip');
+  var fEmail = document.getElementById('fEmail');
+  var fDept = document.getElementById('fDept');
+  var fTitle = document.getElementById('fTitle');
+  var fScopeSel = document.getElementById('fScopeSel');
+  var saveBtn = document.getElementById('userSave');
+  var cancelBtn = document.getElementById('userCancel');
+  var disableFromEdit = document.getElementById('btnDisable');
+  var statusPill = document.getElementById('umStatusPill');
+  var statusFs = document.getElementById('umStatusFs');
+  var basicReqMarks = modal.querySelectorAll('.um-req-basic');
+  var auditFs = document.getElementById('umAuditFs');
+  var auCreated = document.getElementById('auCreated');
+  var auCreatedBy = document.getElementById('auCreatedBy');
+  var auEdited = document.getElementById('auEdited');
+  var auEditedBy = document.getElementById('auEditedBy');
+
+  var disableModal = document.getElementById('disableModal');
+  var disableDesc = document.getElementById('disableDesc');
+  var disableInput = document.getElementById('disableInput');
+  var disableConfirm = document.getElementById('disableConfirm');
+
+  var toast = document.getElementById('userToast');
+
+  var TEXT_FIELDS = { emp: fEmp, name: fName, eip: fEip, email: fEmail };
+
+  /* ---------- dropdown 值設定小工具（設值後刷新顯示文字）---------- */
+  function ddSet(dd, v) { dd.value = v; if (dd._syncLabel) dd._syncLabel(); }
+  function ddDisabled(dd, on) { dd.style.pointerEvents = on ? 'none' : ''; dd.style.opacity = on ? '0.6' : ''; }
+
+  /* ---------- 角色 checkbox 網格 ---------- */
+  function buildRoleGrid() {
+    roleGrid.innerHTML = ROLE_NAMES.map(function (r, i) {
+      return '<label class="um-role-cell" data-role="' + r + '">' +
+        '<input type="checkbox" id="role_' + i + '" value="' + r + '"> ' + r + '</label>';
+    }).join('');
+    roleGrid.querySelectorAll('input[type=checkbox]').forEach(function (chk) {
+      chk.addEventListener('change', function () {
+        chk.closest('.um-role-cell').classList.toggle('is-checked', chk.checked);
+        refreshSave();
+      });
+    });
+  }
+  function getRoleSelection() {
+    return Array.prototype.map.call(roleGrid.querySelectorAll('input:checked'), function (c) { return c.value; });
+  }
+  function setRoleSelection(list) {
+    roleGrid.querySelectorAll('input[type=checkbox]').forEach(function (chk) {
+      var on = list.indexOf(chk.value) !== -1;
+      chk.checked = on;
+      chk.closest('.um-role-cell').classList.toggle('is-checked', on);
+    });
+  }
+  function setRoleGridDisabled(on) {
+    roleGrid.querySelectorAll('input[type=checkbox]').forEach(function (chk) { chk.disabled = on; });
+  }
+
+  /* ---------- 篩選（僅「查詢」時套用）---------- */
+  var applied = { keyword: '', role: '', scope: '', status: '' };
+
+  function passesFilter(u) {
+    if (applied.keyword) {
+      var k = applied.keyword.toLowerCase();
+      var hit = u.name.toLowerCase().indexOf(k) !== -1 ||
+        u.emp.toLowerCase().indexOf(k) !== -1 ||
+        eipOf(u).toLowerCase().indexOf(k) !== -1;
+      if (!hit) return false;
+    }
+    if (applied.role && u.roles.indexOf(applied.role) === -1) return false;
+    if (applied.scope && scopeLabels(u).indexOf(applied.scope) === -1) return false;
+    if (applied.status === '啟用' && !u.active) return false;
+    if (applied.status === '停用' && u.active) return false;
+    return true;
+  }
+
+  /* ---------- 排序（預設：無；停用列置底由 fbSortRows 保證）---------- */
+  var DEFAULT_SORT = null;
+  var sort = DEFAULT_SORT;
+  var sortVal = {
+    emp: function (u) { return u.emp; },
+    dept: function (u) { return u.dept; },
+    scope: function (u) { return scopeLabels(u).join('、'); },
+    agent: function (u) { return AGENT_ZH[u.agent]; },
+    login: function (u) { return u.lastLogin; },
+    edited: function (u) { return u.date; },
+    state: function (u) { return u.active ? 0 : 1; }
+  };
+
+  function sortedRows(rows) {
+    return fbSortRows(rows, { sort: sort, sortVal: sortVal });
+  }
+
+  /* ---------- 統計（永遠依完整 USERS）---------- */
+  function renderStats() {
+    statTotal.value = USERS.length;
+    statActive.value = USERS.filter(function (u) { return u.active; }).length;
+    statActing.value = USERS.filter(function (u) { return u.agent === 'acting'; }).length;
+  }
+
+  /* ---------- 使用者表 ---------- */
+  var HEADS = [
+    { key: 'user', zh: '員編/姓名', en: 'ID/Name', sortable: true, sortKey: 'emp' },
+    { key: 'dept', zh: '部門/職稱', en: 'Dept./Title', sortable: true, sortKey: 'dept' },
+    { key: 'roles', zh: '已指派功能角色', en: 'Roles', sortable: false },
+    { key: 'scope', zh: '資料管轄範圍', en: 'Scope', sortable: true, sortKey: 'scope' },
+    { key: 'agent', zh: '代理狀態', en: 'Agent Status', sortable: true, sortKey: 'agent' },
+    { key: 'login', zh: '最後登入日期時間', en: 'Last Login', sortable: true, sortKey: 'login' },
+    { key: 'edited', zh: '最後編輯', en: 'Last Edit', sortable: true, sortKey: 'edited' },
+    { key: 'state', zh: '狀態', en: 'Status', sortable: true, sortKey: 'state' },
+    { key: 'ops', zh: '操作', en: 'Action', sortable: false }
+  ];
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  function renderTable() {
+    var rows = sortedRows(USERS.filter(passesFilter));
+
+    var html = '<colgroup>' +
+      '<col class="c-user"><col class="c-dept"><col class="c-roles"><col class="c-scope">' +
+      '<col class="c-agent"><col class="c-login"><col class="c-edited"><col class="c-state"><col class="c-ops"></colgroup>';
+
+    html += '<thead><tr>' + HEADS.map(function (h) {
+      var s = h.sortable
+        ? ' <span class="sort-ic" data-col="' + h.sortKey + '" role="button" title="排序">' +
+          FbIcon.sort(sort && sort.col === h.sortKey ? sort.dir : null) + '</span>'
+        : '';
+      return '<th><span class="hcell"><span class="hcell__t">' + h.zh +
+        '<span class="hcell__en">' + h.en + '</span></span>' + s + '</span></th>';
+    }).join('') + '</tr></thead>';
+
+    if (!rows.length) {
+      html += '<tbody><tr><td colspan="9" class="um-empty">查無符合條件的使用者</td></tr></tbody>';
+      table.innerHTML = html;
+      bindSort();
+      return;
+    }
+
+    html += '<tbody>' + rows.map(function (u) {
+      var idx = USERS.indexOf(u);
+
+      var roleTags = u.roles.length
+        ? u.roles.map(function (r) { return '<span class="um-role-tag">' + esc(r) + '</span>'; }).join('')
+        : '<span class="um-roles-empty">無權限</span>';
+
+      var agentSub = u.agent === 'acting' && u.agentBy
+        ? '<span class="um-agent__sub">' + esc(u.agentBy) + ' 代理</span>' : '';
+
+      var opBtn = u.active
+        ? '<button class="btn-outline um-op-btn" type="button" data-edit="' + idx + '"><fb-icon name="fb-edit"></fb-icon> 編輯 Edit</button>'
+        : '<button class="btn-outline um-op-btn" type="button" data-view="' + idx + '"><fb-icon name="fb-eye"></fb-icon> 查看 View</button>';
+
+      return '<tr>' +
+        '<td><span class="um-2line"><span class="um-2line__main">' + esc(u.emp + '-' + u.name) + '</span>' +
+          '<span class="um-2line__sub">' + esc(u.email) + '</span></span></td>' +
+        '<td><span class="um-2line"><span class="um-2line__main">' + esc(u.dept) + '</span>' +
+          '<span class="um-2line__sub">' + esc(u.title) + '</span></span></td>' +
+        '<td><span class="um-roles">' + roleTags + '</span></td>' +
+        '<td><span class="um-scope">' + FbOrgTags.render(scopeLabels(u), 3) + '</span></td>' +
+        '<td><span class="um-agent a-' + u.agent + '"><span class="um-agent__row">' +
+          '<span class="um-agent__dot"></span><span class="um-agent__label">' + esc(AGENT_ZH[u.agent]) + '</span>' +
+          '</span>' + agentSub + '</span></td>' +
+        '<td>' + esc(u.lastLogin) + '</td>' +
+        '<td>' + esc(u.date) + ' <span class="um-edited__by">' + esc(u.by) + '</span></td>' +
+        '<td><span class="um-state um-state--' + (u.active ? 'on' : 'off') + '">' + (u.active ? '啟用' : '停用') + '</span></td>' +
+        '<td>' + opBtn + '</td>' +
+        '</tr>';
+    }).join('') + '</tbody>';
+
+    table.innerHTML = html;
+    bindSort();
+    table.querySelectorAll('[data-edit]').forEach(function (b) {
+      b.addEventListener('click', function () { openEdit(+b.getAttribute('data-edit')); });
+    });
+    table.querySelectorAll('[data-view]').forEach(function (b) {
+      b.addEventListener('click', function () { openView(+b.getAttribute('data-view')); });
+    });
+  }
+
+  function bindSort() {
+    table.querySelectorAll('.sort-ic[data-col]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var k = el.getAttribute('data-col');
+        if (!sort || sort.col !== k) sort = { col: k, dir: 'asc' };
+        else if (sort.dir === 'asc') sort.dir = 'desc';
+        else sort = DEFAULT_SORT;   // 第三次點擊回預設（null）
+        renderTable();
+      });
+    });
+  }
+
+  /* ---------- Modal：新增 / 編輯 / 檢視 ---------- */
+  var editingIndex = null;   // null=新增；數字=編輯或檢視
+  var viewMode = false;      // true=停用列唯讀檢視
+
+  function setFormReadonly(on) {
+    Object.keys(TEXT_FIELDS).forEach(function (k) { TEXT_FIELDS[k].readOnly = on; });
+    ddDisabled(fDept, on);
+    ddDisabled(fTitle, on);
+    ddDisabled(fScopeSel, on);
+    setRoleGridDisabled(on);
+  }
+
+  /* 編輯模式下「基本與 AD 帳號資料」全部唯讀，且不顯示必填星號 */
+  function setBasicReadonly(on) {
+    fEmp.readOnly = on; fName.readOnly = on; fEip.readOnly = on; fEmail.readOnly = on;
+    ddDisabled(fDept, on);
+    ddDisabled(fTitle, on);
+    basicReqMarks.forEach(function (em) { em.hidden = on; });
+  }
+
+  function clearInvalid() {
+    modal.querySelectorAll('.um-field.is-invalid').forEach(function (f) { f.classList.remove('is-invalid'); });
+  }
+
+  function requiredFilled() {
+    var okText = Object.keys(TEXT_FIELDS).every(function (k) { return TEXT_FIELDS[k].value.trim() !== ''; });
+    var okDept = fDept.value !== DEPT_PLACEHOLDER;
+    var okTitle = fTitle.value !== TITLE_PLACEHOLDER;
+    var okScope = fScopeSel.getSelection().length > 0;
+    return okText && okDept && okTitle && okScope;
+  }
+
+  function refreshSave() {
+    if (viewMode) { saveBtn.disabled = false; return; }
+    saveBtn.disabled = !(requiredFilled() && getRoleSelection().length > 0);
+  }
+
+  function openAdd() {
+    editingIndex = null; viewMode = false;
+    modal.setHeading('新增使用者帳號', 'Add User Account');
+    fEmp.value = ''; fName.value = ''; fEip.value = ''; fEmail.value = '';
+    ddSet(fDept, DEPT_PLACEHOLDER); ddSet(fTitle, TITLE_PLACEHOLDER);
+    fScopeSel.setSelection([]);
+    setFormReadonly(false);
+    setBasicReadonly(false);
+    setRoleSelection([]);
+    clearInvalid();
+    saveBtn.textContent = '儲存 Save';
+    saveBtn.hidden = false;
+    statusFs.hidden = true;
+    disableFromEdit.hidden = true;
+    statusPill.hidden = true;
+    auditFs.hidden = true;
+    cancelBtn.textContent = '取消 Cancel';
+    refreshSave();
+    modal.open();
+    setTimeout(function () { fEmp.focus(); }, 0);
+  }
+
+  function fillForm(u) {
+    fEmp.value = u.emp; fName.value = u.name; fEip.value = eipOf(u); fEmail.value = u.email;
+    ddSet(fDept, u.dept); ddSet(fTitle, u.title);
+    fScopeSel.setSelection(u.scope.slice());
+    setRoleSelection(u.roles.slice());
+    clearInvalid();
+    auCreated.textContent = u.created || '—';
+    auCreatedBy.textContent = u.createdBy || '—';
+    auEdited.textContent = u.date || '—';
+    auEditedBy.textContent = u.by || '—';
+    auditFs.hidden = false;
+  }
+
+  function openEdit(i) {
+    editingIndex = i; viewMode = false;
+    var u = USERS[i];
+    modal.setHeading('編輯使用者帳號', 'Edit User Account');
+    fillForm(u);
+    setFormReadonly(false);
+    setBasicReadonly(true);               // 基本與 AD 帳號資料全部唯讀
+    saveBtn.textContent = '儲存 Save';
+    saveBtn.hidden = false;
+    statusFs.hidden = false;
+    disableFromEdit.hidden = false;
+    statusPill.hidden = true;
+    cancelBtn.textContent = '取消 Cancel';
+    refreshSave();
+    modal.open();
+  }
+
+  function openView(i) {
+    editingIndex = i; viewMode = true;
+    var u = USERS[i];
+    modal.setHeading('查看使用者帳號', 'View User Account');
+    fillForm(u);
+    setFormReadonly(true);
+    basicReqMarks.forEach(function (em) { em.hidden = false; });
+    saveBtn.hidden = true;                // 純檢視，底部僅保留「關閉 Close」
+    statusFs.hidden = false;
+    disableFromEdit.hidden = true;
+    statusPill.hidden = false;
+    cancelBtn.textContent = '關閉 Close';
+    modal.open();
+  }
+
+  function save() {
+    if (viewMode) return;
+
+    var missing = false;
+    Object.keys(TEXT_FIELDS).forEach(function (k) {
+      var f = TEXT_FIELDS[k].closest('.um-field');
+      var bad = TEXT_FIELDS[k].value.trim() === '';
+      f.classList.toggle('is-invalid', bad);
+      if (bad) missing = true;
+    });
+    if (missing || !requiredFilled() || getRoleSelection().length === 0) {
+      refreshSave();
+      return;
+    }
+
+    var data = {
+      emp: fEmp.value.trim(), name: fName.value.trim(),
+      email: fEmail.value.trim(), dept: fDept.value, title: fTitle.value,
+      scope: fScopeSel.getSelection(),
+      roles: getRoleSelection()
+    };
+
+    if (editingIndex === null) {
+      USERS.push({
+        emp: data.emp, name: data.name, email: data.email, dept: data.dept, title: data.title,
+        roles: data.roles, scope: data.scope, agent: 'normal', agentBy: '', lastLogin: '尚未登入',
+        created: todayStr(), createdBy: '我',
+        date: todayStr(), by: '我', active: true, _seq: nextSeq(USERS)
+      });
+      finish('使用者已新增');
+    } else {
+      var u = USERS[editingIndex];
+      u.name = data.name; u.email = data.email; u.dept = data.dept; u.title = data.title;
+      u.scope = data.scope;
+      u.roles = data.roles; u.date = todayStr(); u.by = '我';
+      finish('使用者已更新');
+    }
+  }
+
+  function finish(msg) {
+    modal.close();
+    renderStats();
+    renderTable();
+    toast.show(msg);
+  }
+
+  function todayStr() {
+    var d = new Date();
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate());
+  }
+
+  /* ---------- 停用流程（type-to-confirm）---------- */
+  var disablingIndex = null;
+
+  function openDisable() {
+    if (editingIndex === null) return;
+    disablingIndex = editingIndex;
+    var u = USERS[disablingIndex];
+    disableModal.setHeading('停用使用者帳號', 'Disable User Account');
+    disableDesc.innerHTML = '這將永久停用這個帳號所有的系統訪問權限，若確定要停用，請輸入「<b>' + esc(u.emp) + '</b>」';
+    disableInput.value = '';
+    disableConfirm.disabled = true;
+    modal.close();
+    disableModal.open();
+    setTimeout(function () { disableInput.focus(); }, 0);
+  }
+
+  disableInput.addEventListener('input', function () {
+    var u = USERS[disablingIndex];
+    disableConfirm.disabled = !u || disableInput.value.trim() !== u.emp;
+  });
+
+  disableConfirm.addEventListener('click', function () {
+    if (disableConfirm.disabled) return;
+    var u = USERS[disablingIndex];
+    u.active = false; u.agent = 'left'; u.agentBy = '';
+    u.date = todayStr(); u.by = '我';
+    disableModal.close();
+    renderStats();
+    renderTable();
+    toast.show('使用者已停用');
+  });
+
+  /* ---------- 事件綁定 ---------- */
+  Object.keys(TEXT_FIELDS).forEach(function (k) {
+    TEXT_FIELDS[k].addEventListener('input', function () {
+      TEXT_FIELDS[k].closest('.um-field').classList.remove('is-invalid');
+      refreshSave();
+    });
+  });
+  fDept.addEventListener('change', refreshSave);
+  fTitle.addEventListener('change', refreshSave);
+  fScopeSel.addEventListener('change', refreshSave);
+  fEmp.addEventListener('input', function () {
+    if (editingIndex !== null) return; // 僅新增模式生效
+    if (/^\d{6}$/.test(fEmp.value.trim())) {
+      fName.value = EMP_AUTOFILL_MOCK.name;
+      fEip.value = EMP_AUTOFILL_MOCK.eip;
+      fEmail.value = EMP_AUTOFILL_MOCK.email;
+      ddSet(fDept, EMP_AUTOFILL_MOCK.dept);
+      ddSet(fTitle, EMP_AUTOFILL_MOCK.title);
+      refreshSave();
+    }
+  });
+  saveBtn.addEventListener('click', save);
+  disableFromEdit.addEventListener('click', openDisable);
+  document.getElementById('btnAdd').addEventListener('click', openAdd);
+
+  /* 匯出：純示意，不改變表格或勾選狀態 */
+  document.getElementById('btnExport').addEventListener('click', function () {
+    toast.show('（原型）匯出功能為示意');
+  });
+
+  /* 篩選 */
+  document.getElementById('btnSearch').addEventListener('click', function () {
+    applied.keyword = document.getElementById('fKeyword').value.trim();
+    var rv = document.getElementById('fRole').value;
+    var cv = document.getElementById('fScope').value;
+    var sv = document.getElementById('fStatus').value;
+    applied.role = /所有角色/.test(rv) ? '' : rv;
+    applied.scope = /所有資料管轄範圍/.test(cv) ? '' : cv;
+    applied.status = /所有狀態/.test(sv) ? '' : sv;
+    renderTable();
+  });
+  document.getElementById('btnReset').addEventListener('click', function () {
+    document.getElementById('fKeyword').value = '';
+    ['fRole', 'fScope', 'fStatus'].forEach(function (id) {
+      var d = document.getElementById(id);
+      if (d && d.reset) d.reset();
+    });
+    applied = { keyword: '', role: '', scope: '', status: '' };
+    sort = DEFAULT_SORT;
+    renderTable();
+  });
+
+/* ---------- 初始 ---------- */
+  buildRoleGrid();
+  var fScope = document.getElementById('fScope');
+  fScope.options = ['所有資料管轄範圍 (All Scopes)'].concat(flattenOrgTree());
+  fScope.value = fScope.options[0];
+  if (fScope._syncLabel) fScope._syncLabel();
+  fScopeSel.tree = ORG_TREE;
+  renderStats();
+  renderTable();
+})();
+</script>
+</body>
+</html>

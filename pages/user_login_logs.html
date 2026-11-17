@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>使用者登入紀錄</title>
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<style>
+  /* 使用者登入紀錄頁專屬版面（僅引用 token，不含色值字面值）*/
+  /* 頁面標題與內容的間距（原分頁列已移除）*/
+  .area-title + * { margin-top: 24px; }
+
+  .ull-text {
+    height: 40px; padding: 0 12px; width: 100%;
+    border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg-surface);
+    font: inherit; color: var(--color-ink); outline: 0;
+  }
+  .ull-text:focus { border-color: var(--head-bg-primary); }
+  .ull-text::placeholder { color: var(--text-placeholder); }
+
+  .ull-actions { display: flex; justify-content: flex-end; margin: 20px 0 12px; }
+
+  /* 登入紀錄表 */
+  .ull-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .ull-table col.c-ad     { width: 10%; }
+  .ull-table col.c-name   { width: 9%; }
+  .ull-table col.c-emp    { width: 11%; }
+  .ull-table col.c-branch { width: 12%; }
+  .ull-table col.c-ip     { width: 13%; }
+  .ull-table col.c-lin    { width: 12%; }
+  .ull-table col.c-lst    { width: 11%; }
+  .ull-table col.c-lout   { width: 12%; }
+  .ull-table col.c-lmt    { width: 10%; }
+  .ull-table thead th {
+    background: var(--color-grey-100); color: var(--color-ink);
+    font-weight: var(--fw-medium); font-size: var(--fs-sm); line-height: var(--lh-sm);
+    text-align: left; padding: var(--pad-md) var(--pad-sm); white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+  }
+  .ull-table thead th .hcell { display: inline-flex; align-items: center; gap: 4px; }
+  .ull-table thead th .hcell__t { display: inline-flex; flex-direction: column; }
+  .ull-table thead th .hcell__en { font-size: 12px; font-weight: 400; color: var(--color-grey-500); }
+  .ull-table thead th .sort-ic { color: var(--color-grey-500); cursor: pointer; width: 16px; height: 16px; flex: 0 0 auto; }
+  .ull-table thead th .sort-ic:hover { color: var(--head-bg-primary); }
+  .ull-table tbody td {
+    border-top: 1px solid var(--line);
+    padding: var(--pad-md) var(--pad-sm);
+    font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--cell-text);
+    vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ull-table tbody tr:hover td { background: var(--bg-hover-subtle); }
+  .ull-empty { text-align: center; color: var(--text-faint); padding: 40px 12px; white-space: normal; }
+
+  @media (max-width: 1100px) {
+    .filter__grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+  <!-- ============ 1. 頂部導覽 ============ -->
+  <fb-topnav active="tools"></fb-topnav>
+
+  <main class="page">
+    <!-- ============ 2. 頁面標題 ============ -->
+    <fb-area-title zh="使用者登入紀錄" en="User Login Logs"></fb-area-title>
+
+<!-- ============ 4. 篩選 ============ -->
+    <fb-filter-card>
+      <div class="filter__grid">
+        <div class="field">
+          <label>員工編號 <span class="en">ID</span></label>
+          <input type="text" class="ull-text" id="fEmp" placeholder="請輸入員工編號">
+        </div>
+        <div class="field">
+          <label>員工姓名 <span class="en">Name</span></label>
+          <input type="text" class="ull-text" id="fName" placeholder="請輸入員工姓名">
+        </div>
+        <div class="field">
+          <label>AD 帳號 <span class="en">AD Account</span></label>
+          <input type="text" class="ull-text" id="fAd" placeholder="請輸入AD 帳號">
+        </div>
+        <div class="field">
+          <label>使用者 IP <span class="en">User IP</span></label>
+          <input type="text" class="ull-text" id="fIp" placeholder="請輸入使用者 IP">
+        </div>
+      </div>
+      <div class="filter__grid cols-3">
+        <div class="field">
+          <label>登入時間 (起) <span class="en">Login Start Time</span></label>
+          <fb-datetime-field id="fLoginStart" placeholder="請選擇"></fb-datetime-field>
+        </div>
+        <div class="field">
+          <label>登入時間 (訖) <span class="en">Login End Time</span></label>
+          <fb-datetime-field id="fLoginEnd" placeholder="請選擇"></fb-datetime-field>
+        </div>
+        <div class="field">
+          <label>登入狀態 <span class="en">Login Status</span></label>
+          <fb-dropdown id="fLoginStatus" type="single"><script type="application/json">{"options":["全部","DB 登入成功","AD 驗證成功","登入失敗-密碼錯誤","登入失敗-帳號鎖定","(空白)"],"value":"全部"}</script></fb-dropdown>
+        </div>
+      </div>
+      <div class="filter__grid cols-3">
+        <div class="field">
+          <label>登出時間 (起) <span class="en">Logout Start Time</span></label>
+          <fb-datetime-field id="fLogoutStart" placeholder="請選擇"></fb-datetime-field>
+        </div>
+        <div class="field">
+          <label>登出時間 (訖) <span class="en">Logout End Time</span></label>
+          <fb-datetime-field id="fLogoutEnd" placeholder="請選擇"></fb-datetime-field>
+        </div>
+        <div class="field">
+          <label>登出方式 <span class="en">Logout Method</span></label>
+          <fb-dropdown id="fLogoutMethod" type="single"><script type="application/json">{"options":["全部","按鈕登出","Token 到期","閒置逾時","(空白)"],"value":"全部"}</script></fb-dropdown>
+        </div>
+      </div>
+      <div class="filter__actions">
+        <button class="btn-text muted" id="btnReset" type="button"><fb-icon name="fb-reset"></fb-icon> 重設 Reset</button>
+        <button class="btn-primary" id="btnSearch" type="button"><fb-icon name="fb-search"></fb-icon> 查詢 Search</button>
+      </div>
+    </fb-filter-card>
+
+    <!-- ============ 5. 動作列 ============ -->
+    <div class="ull-actions">
+      <button class="btn-outline" id="btnExport" type="button"><fb-icon name="fb-export"></fb-icon> 匯出 Export</button>
+    </div>
+
+    <!-- ============ 6. 登入紀錄表 ============ -->
+    <div class="table-clip">
+      <table class="ull-table" id="logTable"></table>
+    </div>
+
+    <fb-pagination id="pager" total="0" page="1" page-size="20" sizes="20,50,100"></fb-pagination>
+  </main>
+
+  <fb-batch-export-dialog id="exportDlg"></fb-batch-export-dialog>
+  <fb-toast id="toast"></fb-toast>
+
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- 種子資料（頁面內寫死；產生器造約 3,000 筆，未篩選即可觸發 >2,000 分批對話框）---------- */
+  var SURNAMES = ['陳','林','黃','張','李','王','吳','劉','蔡','楊','許','鄭','謝','郭','洪','曾','邱','廖','賴','周'];
+  var GIVEN = ['美玲','宏雅','嘉宏','怡君','志明','怡如','志豪','佩珊','明哲','佩玲','志偉','美華','志強','玉珍','思婷','宏達','美琪','雅雯','建宏','淑芬'];
+  var BRANCHES = ['9634-屏東','9677-板橋','9650-桃園','9643-台中','9612-高雄','9699-台南','9621-新竹','9688-宜蘭','9605-嘉義','9638-花蓮','9670-屏東','9640-南投','9625-苗栗','9695-澎湖','9632-新北','9680-基隆','9667-金門','9601-台北','9655-彰化','9690-連江'];
+  var LOGIN_STATUSES = ['DB 登入成功','AD 驗證成功','登入失敗-密碼錯誤','登入失敗-帳號鎖定'];
+  var LOGOUT_METHODS = ['按鈕登出','Token 到期','閒置逾時',''];   /* '' = (空白) */
+  var BLANK_LABEL = '(空白)';
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function dtStr(d) {
+    return d.getFullYear() + '/' + pad2(d.getMonth() + 1) + '/' + pad2(d.getDate()) +
+      ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+
+  var DATA = [];
+  (function build() {
+    var base = new Date(2026, 7, 27, 8, 0);   /* 2026/08/27 08:00 起 */
+    for (var i = 0; i < 3000; i++) {
+      var ad = String(90001 + (i % 400));
+      var name = SURNAMES[i % SURNAMES.length] + GIVEN[(i * 7) % GIVEN.length];
+      var emp = String(100000 + ((i * 48271) % 900000));
+      var branch = BRANCHES[i % BRANCHES.length];
+      var ip = (i % 2 ? '191.178.' : '192.168.') + ((i % 250) + 1) + '.' + ((i * 3) % 250 + 1);
+      var loginD = new Date(base.getTime() + i * 37 * 60000);
+      var logoutD = new Date(loginD.getTime() + (30 + (i % 12) * 15) * 60000);
+      var lm = LOGOUT_METHODS[(i * 5) % LOGOUT_METHODS.length];
+      DATA.push({
+        ad: ad, name: name, emp: emp, branch: branch, ip: ip,
+        loginAt: dtStr(loginD),
+        loginStatus: LOGIN_STATUSES[(i * 3) % LOGIN_STATUSES.length],
+        logoutAt: dtStr(logoutD),
+        logoutMethod: lm,
+        _seq: i
+      });
+    }
+  })();
+
+  /* ---------- DOM ---------- */
+  var table = document.getElementById('logTable');
+  var pager = document.getElementById('pager');
+  var exportDlg = document.getElementById('exportDlg');
+  var toast = document.getElementById('toast');
+
+  var fEmp = document.getElementById('fEmp');
+  var fName = document.getElementById('fName');
+  var fAd = document.getElementById('fAd');
+  var fIp = document.getElementById('fIp');
+  var fLoginStart = document.getElementById('fLoginStart');
+  var fLoginEnd = document.getElementById('fLoginEnd');
+  var fLogoutStart = document.getElementById('fLogoutStart');
+  var fLogoutEnd = document.getElementById('fLogoutEnd');
+  var fLoginStatus = document.getElementById('fLoginStatus');
+  var fLogoutMethod = document.getElementById('fLogoutMethod');
+
+  /* 起訖聯動 */
+  fbLinkRange(fLoginStart, fLoginEnd, { kind: 'datetime' });
+  fbLinkRange(fLogoutStart, fLogoutEnd, { kind: 'datetime' });
+
+  /* 時間篩選預設值：起＝當天 00:00、訖＝當天 23:59 */
+  function todayStr() {
+    var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate());
+  }
+  function applyDefaultTimeRange() {
+    [fLoginStart, fLogoutStart].forEach(function (d) { d.value = todayStr() + ' 00:00'; });
+    [fLoginEnd, fLogoutEnd].forEach(function (d) { d.value = todayStr() + ' 23:59'; });
+  }
+  applyDefaultTimeRange();
+
+  /* ---------- 篩選（僅「查詢」時套用）---------- */
+  var applied = null;
+
+  function readFilters() {
+    var pick = function (dd) { var v = dd.value; return v === '全部' ? '' : v; };
+    return {
+      emp: fEmp.value.trim(),
+      name: fName.value.trim(),
+      ad: fAd.value.trim(),
+      ip: fIp.value.trim(),
+      loginStart: fLoginStart.value, loginEnd: fLoginEnd.value,
+      logoutStart: fLogoutStart.value, logoutEnd: fLogoutEnd.value,
+      loginStatus: pick(fLoginStatus),
+      logoutMethod: pick(fLogoutMethod)
+    };
+  }
+
+  function passes(r) {
+    var a = applied;
+    if (!a) return true;
+    if (a.emp && r.emp.indexOf(a.emp) === -1) return false;
+    if (a.name && r.name.indexOf(a.name) === -1) return false;
+    if (a.ad && r.ad.indexOf(a.ad) === -1) return false;
+    if (a.ip && r.ip.indexOf(a.ip) === -1) return false;
+    if (a.loginStart && r.loginAt < a.loginStart) return false;
+    if (a.loginEnd && r.loginAt > a.loginEnd) return false;
+    if (a.logoutStart && (!r.logoutAt || r.logoutAt < a.logoutStart)) return false;
+    if (a.logoutEnd && (!r.logoutAt || r.logoutAt > a.logoutEnd)) return false;
+    if (a.loginStatus && r.loginStatus !== a.loginStatus) return false;
+    if (a.logoutMethod) {
+      var lm = r.logoutMethod || BLANK_LABEL;
+      if (a.logoutMethod === BLANK_LABEL ? r.logoutMethod !== '' : lm !== a.logoutMethod) return false;
+    }
+    return true;
+  }
+
+  /* ---------- 排序（預設：登入時間 新到舊）---------- */
+  var DEFAULT_SORT = { col: 'loginAt', dir: 'desc' };
+  var sort = { col: DEFAULT_SORT.col, dir: DEFAULT_SORT.dir };
+  var sortVal = {
+    ad: function (r) { return r.ad; },
+    name: function (r) { return r.name; },
+    emp: function (r) { return r.emp; },
+    branch: function (r) { return r.branch; },
+    ip: function (r) { return r.ip; },
+    loginAt: function (r) { return r.loginAt; },
+    loginStatus: function (r) { return r.loginStatus; },
+    logoutAt: function (r) { return r.logoutAt; },
+    logoutMethod: function (r) { return r.logoutMethod || ''; }
+  };
+
+  /* ---------- 表頭 ---------- */
+  var HEADS = [
+    { key: 'ad', zh: 'AD 帳號', en: 'AD Account' },
+    { key: 'name', zh: '員工姓名', en: 'Name' },
+    { key: 'emp', zh: '員工編號', en: 'ID' },
+    { key: 'branch', zh: '分公司代號', en: 'Branch ID' },
+    { key: 'ip', zh: '使用者 IP', en: 'User IP' },
+    { key: 'loginAt', zh: '登入時間', en: 'Login Time' },
+    { key: 'loginStatus', zh: '登入狀態', en: 'Login Status' },
+    { key: 'logoutAt', zh: '登出時間', en: 'Logout Time' },
+    { key: 'logoutMethod', zh: '登出方式', en: 'Logout Method' }
+  ];
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  var currentFiltered = [];   /* 供匯出取筆數 */
+
+  function render() {
+    currentFiltered = fbSortRows(DATA.filter(passes), { sort: sort, sortVal: sortVal });
+
+    pager.setTotal(currentFiltered.length, pager.page);
+    var page = pager.page;
+    var size = pager.pageSize;
+    var slice = currentFiltered.slice((page - 1) * size, page * size);
+
+    var html = '<colgroup>' +
+      '<col class="c-ad"><col class="c-name"><col class="c-emp"><col class="c-branch"><col class="c-ip">' +
+      '<col class="c-lin"><col class="c-lst"><col class="c-lout"><col class="c-lmt"></colgroup>';
+
+    html += '<thead><tr>' + HEADS.map(function (h) {
+      var dir = sort && sort.col === h.key ? sort.dir : null;
+      return '<th><span class="hcell"><span class="hcell__t">' + h.zh +
+        '<span class="hcell__en">' + h.en + '</span></span>' +
+        '<span class="sort-ic" data-col="' + h.key + '" role="button" title="排序">' + FbIcon.sort(dir) + '</span>' +
+        '</span></th>';
+    }).join('') + '</tr></thead>';
+
+    if (!slice.length) {
+      html += '<tbody><tr><td colspan="9" class="ull-empty">查無符合條件的登入紀錄</td></tr></tbody>';
+    } else {
+      html += '<tbody>' + slice.map(function (r) {
+        return '<tr>' +
+          '<td>' + esc(r.ad) + '</td>' +
+          '<td>' + esc(r.name) + '</td>' +
+          '<td>' + esc(r.emp) + '</td>' +
+          '<td>' + esc(r.branch) + '</td>' +
+          '<td>' + esc(r.ip) + '</td>' +
+          '<td>' + esc(r.loginAt) + '</td>' +
+          '<td>' + esc(r.loginStatus) + '</td>' +
+          '<td>' + esc(r.logoutAt) + '</td>' +
+          '<td>' + (r.logoutMethod ? esc(r.logoutMethod) : '') + '</td>' +
+          '</tr>';
+      }).join('') + '</tbody>';
+    }
+
+    table.innerHTML = html;
+    table.querySelectorAll('.sort-ic[data-col]').forEach(function (elx) {
+      elx.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var k = elx.getAttribute('data-col');
+        if (!sort || sort.col !== k) sort = { col: k, dir: 'asc' };
+        else if (sort.dir === 'asc') sort.dir = 'desc';
+        else sort = { col: DEFAULT_SORT.col, dir: DEFAULT_SORT.dir };
+        render();
+      });
+    });
+  }
+
+  /* ---------- 事件 ---------- */
+  document.getElementById('btnSearch').addEventListener('click', function () {
+    applied = readFilters();
+    if (pager.setTotal) pager.setTotal(DATA.filter(passes).length, 1);
+    render();
+  });
+
+  document.getElementById('btnReset').addEventListener('click', function () {
+    fEmp.value = ''; fName.value = ''; fAd.value = ''; fIp.value = '';
+    applyDefaultTimeRange();
+    [fLoginStatus, fLogoutMethod].forEach(function (d) { if (d.reset) d.reset(); });
+    applied = null;
+    sort = { col: DEFAULT_SORT.col, dir: DEFAULT_SORT.dir };
+    pager.setTotal(DATA.length, 1);
+    render();
+  });
+
+  pager.addEventListener('page-change', function () { render(); });
+
+  /* ---------- 匯出 ----------
+     ≤ 2,000 筆：不開對話框，按鈕進 loading 狀態後跳成功 toast（設計稿 ）
+     > 2,000 筆：開 fb-batch-export-dialog 的「超過單次下載上限」變體（設計稿 ）*/
+  var EXPORT_LIMIT = 2000;
+  var btnExport = document.getElementById('btnExport');
+
+  function setExportLoading(on) {
+    btnExport.classList.toggle('is-loading', on);
+    btnExport.disabled = on;
+    btnExport.innerHTML = (on ? '<fb-icon name="fb-loader"></fb-icon>' : '<fb-icon name="fb-export"></fb-icon>') + ' 匯出 Export';
+  }
+
+  btnExport.addEventListener('click', function () {
+    if (btnExport.classList.contains('is-loading')) return;
+    var count = currentFiltered.length;
+    if (count > EXPORT_LIMIT) {
+      exportDlg.open({ count: count, limit: EXPORT_LIMIT });
+      return;
+    }
+    setExportLoading(true);
+    setTimeout(function () {
+      setExportLoading(false);
+      toast.show('資料已匯出', { desc: '檔案格式：CSV' });
+    }, 1200);
+  });
+
+  exportDlg.addEventListener('export', function (e) {
+    toast.show('資料已匯出', { desc: e.detail.batches > 1 ? '已分 ' + e.detail.batches + ' 批下載 CSV' : '檔案格式：CSV' });
+  });
+
+/* ---------- 初始 ---------- */
+  pager.setTotal(DATA.length, 1);
+  render();
+})();
+</script>
+</body>
+</html>

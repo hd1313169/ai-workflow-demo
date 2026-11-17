@@ -1,0 +1,40 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Introduction" />
+
+# crm-inst 元件庫
+
+企業客戶 CRM 報表系統的前端 prototype。這個 Storybook 展示它背後的**設計系統**：
+從一份 design token 出發，組成可重用的元件，再組裝成完整頁面。
+
+## 架構
+
+```
+design/tokens.json  -- build -->  tokens.css
+   (唯一來源)                       |
+   primitive -> semantic -> component
+                                    v
+                 components.css + components.js (28 個 fb-* 元件)
+                                    |
+                                    v
+                    頁面 = 組裝檔 + 少量頁面邏輯
+```
+
+- **零框架、零建置相依**：元件為原生 Custom Elements（light DOM），可直接以 `file://` 開啟。
+- **色值只存在 token**：`npm run lint:tokens` 擋下任何硬編色值。
+- **三層 token**：primitive（原始色票）→ semantic（用途，如 `text-muted`）→ component（元件專用）。換主題只改 primitive 層。
+- **本 Storybook 不重寫元件**：直接載入正式頁面使用的同一份 CSS 與 JS。
+
+## 我的角色
+
+**UI/UX Designer**
+
+- **UI patterns 設計**：篩選區、報表表格、對話框、分頁等跨頁共用的介面模式
+- **Design system 建立**：三層 design token 架構與 `fb-*` 元件規格
+
+## 如何瀏覽
+
+- **Foundations**：色彩、字級、間距與圓角，數值即時讀自 `tokens.json`
+- **Components**：10 個精選元件，下方 Controls 面板可即時調整屬性
+- **Patterns**：可重複使用的元件組合，標示組成元件與使用頁面
+- **Pages**：全部 11 個頁面依業務分類，可直接操作

@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>使用者軌跡查詢</title>
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<style>
+  /* 使用者軌跡查詢頁專屬版面（僅引用 token，不含色值字面值）*/
+  /* 頁面標題與內容的間距（原分頁列已移除）*/
+  .area-title + * { margin-top: 24px; }
+
+  .ual-text {
+    height: 40px; padding: 0 12px; width: 100%;
+    border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg-surface);
+    font: inherit; color: var(--color-ink); outline: 0;
+  }
+  .ual-text:focus { border-color: var(--head-bg-primary); }
+  .ual-text::placeholder { color: var(--text-placeholder); }
+
+  .ual-actions { display: flex; justify-content: flex-end; margin: 20px 0 12px; }
+
+  /* 軌跡清單表 */
+  .ual-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .ual-table col.c-emp    { width: 11%; }
+  .ual-table col.c-name   { width: 10%; }
+  .ual-table col.c-branch { width: 12%; }
+  .ual-table col.c-apip   { width: 12%; }
+  .ual-table col.c-at     { width: 13%; }
+  .ual-table col.c-action { width: 9%; }
+  .ual-table col.c-res    { width: 8%; }
+  .ual-table col.c-func   { width: 14%; }
+  .ual-table col.c-op     { width: 11%; }
+  .ual-table thead th {
+    background: var(--color-grey-100); color: var(--color-ink);
+    font-weight: var(--fw-medium); font-size: var(--fs-sm); line-height: var(--lh-sm);
+    text-align: left; padding: var(--pad-md) var(--pad-sm); white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+  }
+  .ual-table thead th .hcell { display: inline-flex; align-items: center; gap: 4px; }
+  .ual-table thead th .hcell__t { display: inline-flex; flex-direction: column; }
+  .ual-table thead th .hcell__en { font-size: 12px; font-weight: 400; color: var(--color-grey-500); }
+  .ual-table thead th .sort-ic { color: var(--color-grey-500); cursor: pointer; width: 16px; height: 16px; flex: 0 0 auto; }
+  .ual-table thead th .sort-ic:hover { color: var(--head-bg-primary); }
+  .ual-table tbody td {
+    border-top: 1px solid var(--line);
+    padding: var(--pad-md) var(--pad-sm);
+    font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--cell-text);
+    vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ual-table tbody tr:hover td { background: var(--bg-hover-subtle); }
+  .ual-empty { text-align: center; color: var(--text-faint); padding: 40px 12px; white-space: normal; }
+
+  .ual-detail-btn { padding: 4px 10px; border-radius: var(--radius-sm); }
+  .ual-detail-btn svg { width: 14px; height: 14px; }
+
+  /* 操作軌跡明細 Modal：固定寬 640px；高 80vh / max 680px 由 fb-modal 提供 */
+  #ualDetailModal .modal__panel { width: 640px; min-width: 0; max-width: 640px; }
+  #ualDetailModal .modal__body { padding-top: 16px; }
+  @media (max-width: 640px) {
+    #ualDetailModal .modal__panel { width: 100vw; max-width: 100vw; }
+  }
+
+  @media (max-width: 1100px) {
+    .filter__grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+  <!-- ============ 1. 頂部導覽 ============ -->
+  <fb-topnav active="tools"></fb-topnav>
+
+  <main class="page">
+    <!-- ============ 2. 頁面標題 ============ -->
+    <fb-area-title zh="使用者軌跡查詢" en="User Activity Logs"></fb-area-title>
+
+<!-- ============ 4. 篩選 ============ -->
+    <fb-filter-card>
+      <div class="filter__grid">
+        <div class="field">
+          <label>員工編號 <span class="en">ID</span></label>
+          <input type="text" class="ual-text" id="fEmp" placeholder="請輸入員工編號">
+        </div>
+        <div class="field">
+          <label>員工姓名 <span class="en">Name</span></label>
+          <input type="text" class="ual-text" id="fName" placeholder="請輸入員工姓名">
+        </div>
+        <div class="field">
+          <label>時間範圍 (起) <span class="en">Start Time</span></label>
+          <fb-datetime-field id="fStart" placeholder="請選擇"></fb-datetime-field>
+        </div>
+        <div class="field">
+          <label>時間範圍 (訖) <span class="en">End Time</span></label>
+          <fb-datetime-field id="fEnd" placeholder="請選擇"></fb-datetime-field>
+        </div>
+      </div>
+      <div class="filter__grid cols-3">
+        <div class="field">
+          <label>執行功能 <span class="en">Function</span></label>
+          <input type="text" class="ual-text" id="fFunc" placeholder="請輸入">
+        </div>
+        <div class="field">
+          <label>執行動作 <span class="en">Action</span></label>
+          <fb-dropdown id="fAction" type="single"><script type="application/json">{"options":["全部","查詢","異動","下載"],"value":"全部"}</script></fb-dropdown>
+        </div>
+        <div class="field">
+          <label>執行結果 <span class="en">Results</span></label>
+          <fb-dropdown id="fResult" type="single"><script type="application/json">{"options":["全部","成功","失敗"],"value":"全部"}</script></fb-dropdown>
+        </div>
+      </div>
+      <div class="filter__actions">
+        <button class="btn-text muted" id="btnReset" type="button"><fb-icon name="fb-reset"></fb-icon> 重設 Reset</button>
+        <button class="btn-primary" id="btnSearch" type="button"><fb-icon name="fb-search"></fb-icon> 查詢 Search</button>
+      </div>
+    </fb-filter-card>
+
+    <!-- ============ 5. 動作列 ============ -->
+    <div class="ual-actions">
+      <button class="btn-outline" id="btnExport" type="button"><fb-icon name="fb-export"></fb-icon> 匯出 Export</button>
+    </div>
+
+    <!-- ============ 6. 軌跡清單表 ============ -->
+    <div class="table-clip">
+      <table class="ual-table" id="logTable"></table>
+    </div>
+
+    <fb-pagination id="pager" total="0" page="1" page-size="20" sizes="20,50,100"></fb-pagination>
+  </main>
+
+  <!-- ============ 7. 操作軌跡明細 Modal ============ -->
+  <fb-modal id="ualDetailModal" heading="操作軌跡明細" heading-en="User Activity Logs Details">
+    <fb-info-table id="ualInfo"></fb-info-table>
+    <div data-modal-footer style="display:flex;justify-content:flex-end;width:100%">
+      <button class="btn-primary" type="button" data-modal-close>關閉</button>
+    </div>
+  </fb-modal>
+
+  <fb-batch-export-dialog id="exportDlg"></fb-batch-export-dialog>
+  <fb-toast id="toast"></fb-toast>
+
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- 種子資料（頁面內寫死；產生器造約 3,000 筆，未篩選即可觸發 >2,000 分批對話框）---------- */
+  var SURNAMES = ['陳','林','黃','張','李','王','吳','劉','蔡','楊','許','鄭','謝','郭','洪','曾','邱','廖','賴','周'];
+  var GIVEN = ['美玲','宏雅','嘉宏','怡君','志明','怡如','志豪','佩珊','明哲','佩玲','志偉','美華','志強','玉珍','思婷','宏達','美琪','雅雯','建宏','淑芬'];
+  var BRANCHES = ['9634-羅東','9589-屏東','9524-宜蘭','9672-苗栗','9630-台東','9583-雲林','9516-南投','9798-基隆','9551-台北','9622-花蓮','9703-彰化','9688-台南','9321-高雄','9605-宜蘭','9540-嘉義','9710-新竹','9812-台中','9503-桃園','9677-板橋','9650-新北'];
+  var FUNCS = ['資料查詢','用戶管理操作','事件通知設定','效能監控報告','安全設定審查','備份任務排程','權限申請審核','數據報表生成','API 存取日誌','防火牆規則更新','密碼重設申請','帳戶鎖定管理','應用程式測試','用戶權限變更','報表匯出操作','後台管理登入','用戶資料更新','系統設定變更','使用者軌跡-查詢','共用-lookup 查詢'];
+  var ACTIONS = ['查詢','異動','下載'];
+  var RESULTS = ['成功','失敗'];
+  var AP_SERVERS = ['AP-SRV-01','AP-SRV-02','AP-SRV-03','AP-SRV-04'];
+  var AGENTS = ['','','','','859612-王志偉','870233-林怡君'];   /* '' = 無代理人（顯示「-」） */
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function dtStr(d) {
+    return d.getFullYear() + '/' + pad2(d.getMonth() + 1) + '/' + pad2(d.getDate()) +
+      ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  function uuidLike(i) {
+    function hx(seed, len) {
+      var s = '';
+      for (var k = 0; k < len; k++) { seed = (seed * 1103515245 + 12345) & 0x7fffffff; s += (seed % 16).toString(16); }
+      return s;
+    }
+    return hx(i + 1, 8) + '-' + hx(i + 2, 4) + '-' + hx(i + 3, 4) + '-' + hx(i + 4, 4) + '-' + hx(i + 5, 12);
+  }
+
+  var DATA = [];
+  (function build() {
+    var base = new Date(2026, 7, 27, 8, 0);   /* 2026/08/27 08:00 起 */
+    for (var i = 0; i < 3000; i++) {
+      var name = SURNAMES[i % SURNAMES.length] + GIVEN[(i * 7) % GIVEN.length];
+      var emp = String(100000 + ((i * 48271) % 900000));
+      var branch = BRANCHES[i % BRANCHES.length];
+      var apip = (i % 2 ? '172.20.' : '192.168.') + ((i % 250) + 1) + '.' + ((i * 3) % 250 + 1);
+      var actionD = new Date(base.getTime() + i * 37 * 60000);
+      var result = RESULTS[(i * 3) % RESULTS.length];
+      var func = FUNCS[i % FUNCS.length];
+      var action = ACTIONS[(i * 5) % ACTIONS.length];
+      var operatorIp = (i % 3 ? '10.0.' : '192.168.9.') + ((i * 7) % 240 + 1);
+      DATA.push({
+        emp: emp, name: name, branch: branch, apip: apip,
+        actionAt: dtStr(actionD),
+        result: result,
+        func: func,
+        action: action,
+        _seq: i,
+        detail: {
+          operator: emp + '-' + name,
+          agent: AGENTS[(i * 5) % AGENTS.length],
+          operatorIp: operatorIp,
+          func: func,
+          params: 'function Uf(a){ if(!a.length) return a; a.push({id:"main",ine:0}); for(var b=a.length-1;b>0;b--) Ab(a[b].id)&&a.splice(b++,1); for(var c=a.length-1;c>0;c--) a[c].line=a[c-1].line; a.splice(0,1); return a }',
+          apiId: uuidLike(i),
+          apServer: AP_SERVERS[i % AP_SERVERS.length],
+          traceId: uuidLike(i + 100),
+          statusMsg: result === '成功'
+            ? '{ "code": 200, "message": "OK" }'
+            : '{ "code": 400, "message": "Invalid input format." }'
+        }
+      });
+    }
+  })();
+
+  /* ---------- DOM ---------- */
+  var table = document.getElementById('logTable');
+  var pager = document.getElementById('pager');
+  var exportDlg = document.getElementById('exportDlg');
+  var toast = document.getElementById('toast');
+  var detailModal = document.getElementById('ualDetailModal');
+  var infoTable = document.getElementById('ualInfo');
+
+  var fEmp = document.getElementById('fEmp');
+  var fName = document.getElementById('fName');
+  var fStart = document.getElementById('fStart');
+  var fEnd = document.getElementById('fEnd');
+  var fAction = document.getElementById('fAction');
+  var fFunc = document.getElementById('fFunc');
+  var fResult = document.getElementById('fResult');
+
+  /* 起訖聯動 */
+  fbLinkRange(fStart, fEnd, { kind: 'datetime' });
+
+  /* 時間篩選預設值：起＝當天 00:00、訖＝當天 23:59 */
+  function todayStr() {
+    var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate());
+  }
+  function applyDefaultTimeRange() {
+    fStart.value = todayStr() + ' 00:00';
+    fEnd.value = todayStr() + ' 23:59';
+  }
+  applyDefaultTimeRange();
+
+  /* ---------- 篩選（僅「查詢」時套用）---------- */
+  var applied = null;
+
+  function readFilters() {
+    var pick = function (dd) { var v = dd.value; return v === '全部' ? '' : v; };
+    return {
+      emp: fEmp.value.trim(),
+      name: fName.value.trim(),
+      func: fFunc.value.trim(),
+      timeStart: fStart.value, timeEnd: fEnd.value,
+      action: pick(fAction),
+      result: pick(fResult)
+    };
+  }
+
+  function passes(r) {
+    var a = applied;
+    if (!a) return true;
+    if (a.emp && r.emp.indexOf(a.emp) === -1) return false;
+    if (a.name && r.name.indexOf(a.name) === -1) return false;
+    if (a.func && r.func.indexOf(a.func) === -1) return false;
+    if (a.timeStart && r.actionAt < a.timeStart) return false;
+    if (a.timeEnd && r.actionAt > a.timeEnd) return false;
+    if (a.action && r.action !== a.action) return false;
+    if (a.result && r.result !== a.result) return false;
+    return true;
+  }
+
+  /* ---------- 排序（預設：操作時間 新到舊）---------- */
+  var DEFAULT_SORT = { col: 'actionAt', dir: 'desc' };
+  var sort = { col: DEFAULT_SORT.col, dir: DEFAULT_SORT.dir };
+  var sortVal = {
+    emp: function (r) { return r.emp; },
+    name: function (r) { return r.name; },
+    branch: function (r) { return r.branch; },
+    apip: function (r) { return r.apip; },
+    actionAt: function (r) { return r.actionAt; },
+    action: function (r) { return r.action; },
+    result: function (r) { return r.result; },
+    func: function (r) { return r.func; }
+  };
+
+  /* ---------- 表頭（前 8 欄可排序；「操作」欄不可）---------- */
+  var HEADS = [
+    { key: 'emp', zh: '員工編號', en: 'ID' },
+    { key: 'name', zh: '員工姓名', en: 'Name' },
+    { key: 'branch', zh: '分公司代號', en: 'Branch ID' },
+    { key: 'apip', zh: '主機 IP', en: 'AP Server' },
+    { key: 'actionAt', zh: '操作時間', en: 'Action Time' },
+    { key: 'func', zh: '執行功能', en: 'Function' },
+    { key: 'action', zh: '執行動作', en: 'Action' },
+    { key: 'result', zh: '執行結果', en: 'Results' },
+    { key: 'op', zh: '操作', en: 'Action', noSort: true }
+  ];
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  var currentFiltered = [];   /* 供匯出取筆數 */
+
+  function render() {
+    currentFiltered = fbSortRows(DATA.filter(passes), { sort: sort, sortVal: sortVal });
+
+    pager.setTotal(currentFiltered.length, pager.page);
+    var page = pager.page;
+    var size = pager.pageSize;
+    var slice = currentFiltered.slice((page - 1) * size, page * size);
+
+    var html = '<colgroup>' +
+      '<col class="c-emp"><col class="c-name"><col class="c-branch"><col class="c-apip">' +
+      '<col class="c-at"><col class="c-func"><col class="c-action"><col class="c-res"><col class="c-op"></colgroup>';
+
+    html += '<thead><tr>' + HEADS.map(function (h) {
+      var sortIc = h.noSort ? '' :
+        '<span class="sort-ic" data-col="' + h.key + '" role="button" title="排序">' +
+        FbIcon.sort(sort && sort.col === h.key ? sort.dir : null) + '</span>';
+      return '<th><span class="hcell"><span class="hcell__t">' + h.zh +
+        '<span class="hcell__en">' + h.en + '</span></span>' + sortIc + '</span></th>';
+    }).join('') + '</tr></thead>';
+
+    if (!slice.length) {
+      html += '<tbody><tr><td colspan="9" class="ual-empty">查無符合條件的操作軌跡</td></tr></tbody>';
+    } else {
+      html += '<tbody>' + slice.map(function (r) {
+        return '<tr>' +
+          '<td>' + esc(r.emp) + '</td>' +
+          '<td>' + esc(r.name) + '</td>' +
+          '<td>' + esc(r.branch) + '</td>' +
+          '<td>' + esc(r.apip) + '</td>' +
+          '<td>' + esc(r.actionAt) + '</td>' +
+          '<td>' + esc(r.func) + '</td>' +
+          '<td>' + esc(r.action) + '</td>' +
+          '<td>' + esc(r.result) + '</td>' +
+          '<td><button type="button" class="btn-outline ual-detail-btn" data-detail="' + r._seq + '">' +
+            '<fb-icon name="fb-eye"></fb-icon> 詳細</button></td>' +
+          '</tr>';
+      }).join('') + '</tbody>';
+    }
+
+    table.innerHTML = html;
+    table.querySelectorAll('.sort-ic[data-col]').forEach(function (elx) {
+      elx.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var k = elx.getAttribute('data-col');
+        if (!sort || sort.col !== k) sort = { col: k, dir: 'asc' };
+        else if (sort.dir === 'asc') sort.dir = 'desc';
+        else sort = { col: DEFAULT_SORT.col, dir: DEFAULT_SORT.dir };
+        render();
+      });
+    });
+    table.querySelectorAll('button[data-detail]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var row = DATA[parseInt(btn.getAttribute('data-detail'), 10)];
+        if (row) openDetail(row);
+      });
+    });
+  }
+
+  /* ---------- 操作軌跡明細 ---------- */
+  function openDetail(r) {
+    var d = r.detail;
+    infoTable.rows = [
+      { label: '操作時間', value: r.actionAt },
+      { label: '執行者', value: d.operator },
+      { label: '代理人', value: d.agent },
+      { label: '執行者 IP', value: d.operatorIp },
+      { label: '執行功能', value: d.func },
+      { label: '執行參數', value: d.params },
+      { label: '執行 API', value: d.apiId },
+      { label: 'AP Server', value: d.apServer },
+      { label: 'Trace Id', value: d.traceId },
+      { label: 'Status Message', value: d.statusMsg }
+    ];
+    detailModal.open();
+  }
+
+  /* ---------- 事件 ---------- */
+  document.getElementById('btnSearch').addEventListener('click', function () {
+    applied = readFilters();
+    if (pager.setTotal) pager.setTotal(DATA.filter(passes).length, 1);
+    render();
+  });
+
+  document.getElementById('btnReset').addEventListener('click', function () {
+    fEmp.value = ''; fName.value = ''; fFunc.value = '';
+    applyDefaultTimeRange();
+    [fAction, fResult].forEach(function (d) { if (d.reset) d.reset(); });
+    applied = null;
+    sort = { col: DEFAULT_SORT.col, dir: DEFAULT_SORT.dir };
+    pager.setTotal(DATA.length, 1);
+    render();
+  });
+
+  pager.addEventListener('page-change', function () { render(); });
+
+  /* ---------- 匯出 ----------
+     ≤ 2,000 筆：不開對話框，按鈕進 loading 狀態後跳成功 toast（設計稿 ）
+     > 2,000 筆：開 fb-batch-export-dialog 的「超過單次下載上限」變體（設計稿 ）*/
+  var EXPORT_LIMIT = 2000;
+  var btnExport = document.getElementById('btnExport');
+
+  function setExportLoading(on) {
+    btnExport.classList.toggle('is-loading', on);
+    btnExport.disabled = on;
+    btnExport.innerHTML = (on ? '<fb-icon name="fb-loader"></fb-icon>' : '<fb-icon name="fb-export"></fb-icon>') + ' 匯出 Export';
+  }
+
+  btnExport.addEventListener('click', function () {
+    if (btnExport.classList.contains('is-loading')) return;
+    var count = currentFiltered.length;
+    if (count > EXPORT_LIMIT) {
+      exportDlg.open({ count: count, limit: EXPORT_LIMIT });
+      return;
+    }
+    setExportLoading(true);
+    setTimeout(function () {
+      setExportLoading(false);
+      toast.show('資料已匯出', { desc: '檔案格式：CSV' });
+    }, 1200);
+  });
+
+  exportDlg.addEventListener('export', function (e) {
+    toast.show('資料已匯出', { desc: e.detail.batches > 1 ? '已分 ' + e.detail.batches + ' 批下載 CSV' : '檔案格式：CSV' });
+  });
+
+/* ---------- 初始 ---------- */
+  pager.setTotal(DATA.length, 1);
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+node_modules/
+dist/
+storybook-static/
+.claude/
+.mcp.json
+.brand-denylist.txt

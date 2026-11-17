@@ -1,0 +1,15 @@
+{
+  "name": "crm-inst",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CRM 企業客戶報表前端 prototype（無框架、元件化）",
+  "type": "module",
+  "scripts": {
+    "build:tokens": "node build.mjs tokens",
+    "build": "node build.mjs pages",
+    "lint:tokens": "node build.mjs lint",
+    "lint:brand": "node build.mjs lint-brand",
+    "check": "node build.mjs lint && node build.mjs lint-brand"
+  },
+  "devDependencies": {}
+}
