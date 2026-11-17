@@ -14,8 +14,8 @@
 ## 3. 程式與頁面
 
 - [x] 3.1 替換 `assets/js/components.js`、`assets/css/components.css` 中的術語與註解（成組處理字串比對），開 `pages/_components.html` 確認元件正常
-- [ ] 3.2 替換 `index.html` 假資料與術語，瀏覽器開啟確認行事曆與客戶清單互動正常、主控台無錯誤
-- [ ] 3.3 替換 `pages/*.html` 全部頁面（email 改 `@example.com`、企業名、術語），逐頁開啟確認互動正常
+- [x] 3.2 替換 `index.html` 假資料與術語，瀏覽器開啟確認行事曆與客戶清單互動正常、主控台無錯誤
+- [x] 3.3 替換 `pages/*.html` 全部頁面（email 改 `@example.com`、企業名、術語），逐頁開啟確認互動正常
 - [x] 3.4 移除 CSS／JS／tokens 中 Figma node ID 註解，重跑 `npm run build:tokens` 與 `npm run lint:tokens` 確認通過
 
 ## 4. 文件與設定
@@ -28,4 +28,4 @@
 ## 5. 整合驗證
 
 - [x] 5.1 執行 `npm run lint:brand` 掃描整個專案（排除 gitignore 項目），確認零命中
-- [ ] 5.2 人工瀏覽所有頁面（含下拉、tooltip、對話框、toast、分頁標題），確認畫面無識別資訊
+- [x] 5.2 人工瀏覽所有頁面（含下拉、tooltip、對話框、toast、分頁標題），確認畫面無識別資訊
