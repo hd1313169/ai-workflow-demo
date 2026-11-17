@@ -20,8 +20,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      BRAND_DENYLIST_FILE: ${{ runner.temp }}/brand-denylist.txt
     steps:
       - uses: actions/checkout@v4
 
@@ -36,7 +34,10 @@ jobs:
           DENYLIST: ${{ secrets.BRAND_DENYLIST }}
         run: |
           if [ -z "$DENYLIST" ]; then echo "缺少 BRAND_DENYLIST secret"; exit 1; fi
-          printf '%s\n' "$DENYLIST" > "$BRAND_DENYLIST_FILE"
+          FILE="$RUNNER_TEMP/brand-denylist.txt"
+          printf '%s\n' "$DENYLIST" > "$FILE"
+          # 後續步驟以環境變數取得清單路徑（lint-brand 讀 BRAND_DENYLIST_FILE）
+          echo "BRAND_DENYLIST_FILE=$FILE" >> "$GITHUB_ENV"
 
       - name: 識別資訊檢查（原始碼）
         run: node build.mjs lint-brand
